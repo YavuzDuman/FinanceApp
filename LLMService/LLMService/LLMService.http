@@ -1,0 +1,43 @@
+### Test Gemini AI Service - Basit Kullanım
+POST https://localhost:7000/AI/ask-simple
+Content-Type: application/json
+
+"THYAO hissesinin teknik analizini yap."
+
+### Test Gemini AI Service - Gelişmiş Kullanım
+POST https://localhost:7000/AI/ask
+Content-Type: application/json
+
+{
+  "prompt": "THYAO hissesinin teknik ve temel analizini yap. Son 6 aylık performansını değerlendir ve yatırım tavsiyesi ver.",
+  "serviceType": "gemini",
+  "modelName": "gemini-1.5-flash"
+}
+
+### Test Google Cloud AI Platform Service
+POST https://localhost:7000/AI/ask
+Content-Type: application/json
+
+{
+  "prompt": "BIST 100 endeksindeki teknoloji hisselerini analiz et. Hangi teknoloji şirketleri en iyi yatırım fırsatları sunuyor?",
+  "serviceType": "googlecloud",
+  "modelName": "gemini-1.5-flash"
+}
+
+### BIST 100 Analizi
+POST https://localhost:7000/AI/ask
+Content-Type: application/json
+
+{
+  "prompt": "BIST 100 endeksindeki teknoloji hisselerini analiz et. Hangi teknoloji şirketleri en iyi yatırım fırsatları sunuyor?",
+  "serviceType": "gemini"
+}
+
+### Bankacılık Sektörü Analizi
+POST https://localhost:7000/AI/ask
+Content-Type: application/json
+
+{
+  "prompt": "Türk bankacılık sektöründeki hisse senetlerini karşılaştır. AKBNK, GARAN, ISCTR hisselerinin güçlü ve zayıf yönlerini analiz et.",
+  "serviceType": "gemini"
+}
