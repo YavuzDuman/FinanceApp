@@ -19,6 +19,9 @@ namespace PortfolioService.DataAccess.Context
 			modelBuilder.Entity<PortfolioItem>()
 				.Property(pi => pi.AverageCost)
 				.HasPrecision(18, 6);
+			modelBuilder.Entity<PortfolioItem>()
+				.Property(pi => pi.CurrentPrice)
+				.HasPrecision(18, 6); ;
 
 			modelBuilder.Entity<Portfolio>()
 				.HasMany(p => p.PortfolioItems)

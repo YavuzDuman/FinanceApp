@@ -9,7 +9,6 @@ public class GeminiService : IAIService
 	private readonly HttpClient _httpClient;
 	private readonly string _apiKey;
 
-	// Model adını burada değiştiriyoruz
 	private const string ModelName = "gemini-1.5-flash"; // Daha hızlı ve daha az kota kullanan model
 
 	public GeminiService(HttpClient httpClient, string apiKey)

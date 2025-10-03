@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authorization;
+using Shared.Authorization;
 using System.Security.Claims;
 using UserService.Entities.Concrete;
 
@@ -9,7 +10,8 @@ namespace WebApi.Helpers.Authorization
 		protected override Task HandleRequirementAsync(AuthorizationHandlerContext context, OwnerAuthorizationRequirement requirement, User resource)
 		{
 			// 1. JWT token'dan kullanıcının ID'sini (claim) al.
-			var userIdClaim = context.User.FindFirst(ClaimTypes.NameIdentifier);
+			var userIdClaim = context.User.FindFirst("sub") ?? 
+							  context.User.FindFirst(ClaimTypes.NameIdentifier);
 
 			// Eğer token'da kullanıcı ID'si yoksa veya null ise, yetkilendirme başarısız.
 			if (userIdClaim == null)

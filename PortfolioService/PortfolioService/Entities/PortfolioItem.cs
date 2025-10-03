@@ -14,7 +14,9 @@ namespace PortfolioService.Entities.Concrete
 		public DateTime PurchaseDate { get; set; }
 		[ForeignKey("Portfolio")]
 		public int PortfolioId { get; set; }
-		
+		public decimal CurrentPrice { get; set; }
+
+
 		public Portfolio Portfolio { get; set; }
 	}
 }

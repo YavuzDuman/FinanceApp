@@ -16,9 +16,20 @@ namespace PortfolioService.DataAccess.Concrete
 
 		//Portfolio Methodlari
 
+		public async Task<List<Portfolio>> GetAllPortfoliosAsync()
+		{
+			return await _context.Portfolios
+				.Include(p => p.PortfolioItems)
+				.ToListAsync();
+		}
+
 		public async Task<Portfolio> GetPortfolioByIdAsync(int portfolioId)
 		{
-			return await _context.Portfolios.FindAsync(portfolioId);
+			var portfolio = await _context.Portfolios
+				.Include(p=> p.PortfolioItems)
+				.FirstOrDefaultAsync(p => p.Id == portfolioId)
+				;
+			return portfolio;
 		}
 
 		public async Task<List<Portfolio>> GetAllPortfoliosByUserIdAsync(int userId)
@@ -83,6 +94,20 @@ namespace PortfolioService.DataAccess.Concrete
 		public async Task UpdatePortfolioItemAsync(PortfolioItem item)
 		{
 			_context.PortfolioItems.Update(item);
+			await _context.SaveChangesAsync();
+		}
+
+		public async Task UpdateCurrentPriceBySymbolAsync(string symbol, decimal currentPrice)
+		{
+			var items = await _context.PortfolioItems
+				.Where(pi => pi.Symbol == symbol)
+				.ToListAsync();
+			if (items.Count == 0) return;
+			foreach (var item in items)
+			{
+				item.CurrentPrice = currentPrice;
+			}
+			_context.PortfolioItems.UpdateRange(items);
 			await _context.SaveChangesAsync();
 		}
 	}

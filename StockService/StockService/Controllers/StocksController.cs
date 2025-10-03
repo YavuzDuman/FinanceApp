@@ -1,11 +1,13 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using StockService.Business.Abstract;
 using StockService.Entities.Concrete;
+using Microsoft.AspNetCore.Authorization;
 
 namespace StockService.Controllers
 {
 	[Route("api/[controller]")]
 	[ApiController]
+	[Authorize]
 	public class StocksController : ControllerBase
 	{
 		private readonly IStockManager _stockManager;
@@ -34,6 +36,7 @@ namespace StockService.Controllers
 		}
 
 		[HttpPost("update-from-api")]
+		[Authorize(Policy = "AdminOnly")] // Sadece Admin bu işlemi yapabilir
 		public async Task<IActionResult> UpdateStocksFromApi()
 		{
 			await _stockManager.UpdateStocksFromExternalApiAsync();

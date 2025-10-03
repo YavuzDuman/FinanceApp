@@ -57,6 +57,10 @@ namespace PortfolioService.Migrations
                         .HasPrecision(18, 6)
                         .HasColumnType("decimal(18,6)");
 
+                    b.Property<decimal>("CurrentPrice")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("decimal(18,6)");
+
                     b.Property<int>("PortfolioId")
                         .HasColumnType("int");
 

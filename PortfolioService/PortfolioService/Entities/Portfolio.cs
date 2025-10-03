@@ -1,4 +1,5 @@
-﻿using Shared.Abstract;
+﻿using PortfolioService.Entities.Dtos;
+using Shared.Abstract;
 using System.ComponentModel.DataAnnotations;
 
 namespace PortfolioService.Entities.Concrete

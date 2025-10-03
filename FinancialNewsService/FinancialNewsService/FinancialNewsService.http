@@ -1,6 +1,0 @@
-@FinancialNewsService_HostAddress = http://localhost:5077
-
-GET {{FinancialNewsService_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###

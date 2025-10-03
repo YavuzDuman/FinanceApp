@@ -3,6 +3,7 @@
 using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
@@ -13,41 +14,45 @@ using UserService.DataAccess.Concrete;
 using UserService.DataAccess.Context;
 using UserService.Entities.Concrete;
 using UserService.Helpers.Hashing;
-using WebApi.Helpers.Authorization;
-using WebApi.Helpers.Jwt;
 using System.IdentityModel.Tokens.Jwt;
+using Shared.Extensions;
+using WebApi.Helpers.Jwt;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// Merkezi loglama konfigÃ¼rasyonu
+builder.AddCentralizedLogging();
 
-// VERÝTABANI BAÐLANTISI
+// VERï¿½TABANI BAï¿½LANTISI
 builder.Services.AddDbContext<UserDatabaseContext>(options =>
 	options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// HASHING SERVÝSÝ
+// HASHING SERVï¿½Sï¿½
 builder.Services.AddScoped<PasswordHasher>();
 
 // REPOSITORYLER
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IAuthRepository, AuthRepository>();
+builder.Services.AddScoped<IRoleRepository, RoleRepository>();
+builder.Services.AddScoped<IUserRoleRepository, UserRoleRepository>();
 builder.Services.AddScoped<IRepository<UserRole>, EfRepository<UserRole>>();
 builder.Services.AddScoped<IRepository<Role>, EfRepository<Role>>();
 
-// MANAGER'LAR VE DÝÐER SERVÝSLER
+// MANAGER'LAR VE DÄ°ÄžER SERVÄ°SLER
 builder.Services.AddScoped<IAuthManager, AuthManager>();
 builder.Services.AddScoped<IUserManager, UserManager>();
+builder.Services.AddScoped<IRoleManager, RoleManager>();
 builder.Services.AddScoped<JwtTokenGenerator>();
 
-// JWT Claim eþleþtirmesini temizle.
-// Bu, token'ýn içindeki claim'lerin, uzun þema adlarýyla kalmasýný saðlar.
+
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
-// JWT Konfigürasyonu
+// JWT Konfigï¿½rasyonu
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 	.AddJwtBearer(options =>
 	{
-		options.IncludeErrorDetails = true; // Hata detaylarýný konsola yazdýrýr.
+		options.IncludeErrorDetails = true; // Hata detaylarï¿½nï¿½ konsola yazdï¿½rï¿½r.
 		options.TokenValidationParameters = new TokenValidationParameters
 		{
 			ValidateIssuerSigningKey = true,
@@ -60,30 +65,26 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 		};
 	});
 
-// Authorization Handler'ý Dependency Injection'a kaydet.
-builder.Services.AddSingleton<IAuthorizationHandler, OwnerAuthorizationHandler>();
+// Merkezi Authorization Policy'leri ekle
+builder.Services.AddCentralizedAuthorization();
 
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 builder.Services.AddControllers()
 	.AddFluentValidation(fv =>
 	{
-		// Validatörleri otomatik olarak bul ve kaydet
+		// Validatï¿½rleri otomatik olarak bul ve kaydet
 		fv.RegisterValidatorsFromAssemblyContaining<Program>();
 
 		fv.DisableDataAnnotationsValidation = false;
 	});
 
-// Swagger/OpenAPI ayarlarý
+// Swagger/OpenAPI ayarlarï¿½
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-
-// Authorization servisini ekle
-builder.Services.AddAuthorization();
 
 
 var app = builder.Build();
 
-// HTTP Ýstek Ýþlem Hattýný Yapýlandýr.
 if (app.Environment.IsDevelopment())
 {
 	app.UseSwagger();
@@ -92,12 +93,22 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// Routing, Authentication ve Authorization middleware'lerini doðru sýrada ekle.
-// Bu sýralama, API isteklerinin doðru þekilde iþlenmesi için hayati önem taþýr.
+// Merkezi middleware'leri ekle
+app.UseCentralizedMiddleware();
+
+// Routing, Authentication ve Authorization middleware'lerini doï¿½ru sï¿½rada ekle.
+// Bu sï¿½ralama, API isteklerinin doï¿½ru ï¿½ekilde iï¿½lenmesi iï¿½in hayati ï¿½nem taï¿½ï¿½r.
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// VarsayÄ±lan rolleri oluÅŸtur
+using (var scope = app.Services.CreateScope())
+{
+    var roleManager = scope.ServiceProvider.GetRequiredService<IRoleManager>();
+    await roleManager.InitializeDefaultRolesAsync();
+}
 
 app.Run();

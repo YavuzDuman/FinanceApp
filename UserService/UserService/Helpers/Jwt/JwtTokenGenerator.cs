@@ -22,7 +22,8 @@ namespace WebApi.Helpers.Jwt
 		{
 			var claims = new List<Claim>
 			{
-				new Claim(ClaimTypes.NameIdentifier, user.UserId.ToString()),
+				new Claim("sub", user.UserId.ToString()), // Ocelot için sub claim'i
+				new Claim(ClaimTypes.NameIdentifier, user.UserId.ToString()), // Geriye uyumluluk için
 				new Claim(ClaimTypes.Name, user.Username),
 				new Claim(ClaimTypes.Email, user.Email),
 			};
@@ -34,8 +35,6 @@ namespace WebApi.Helpers.Jwt
 					claims.Add(new Claim(ClaimTypes.Role, role.Role.Name));
 				}
 			}
-
-
 
 			var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]));
 			var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
@@ -53,7 +52,7 @@ namespace WebApi.Helpers.Jwt
 
 		public string GenerateRefreshToken()
 		{
-			var randomNumber = new byte[256];
+			var randomNumber = new byte[64];
 			using var rng = RandomNumberGenerator.Create();
 			rng.GetBytes(randomNumber);
 			return Convert.ToBase64String(randomNumber);

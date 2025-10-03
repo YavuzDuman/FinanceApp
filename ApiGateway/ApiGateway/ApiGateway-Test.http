@@ -1,0 +1,53 @@
+### ApiGateway JWT Authentication Test Dosyası
+
+### 1. Login (Token almak için - Public endpoint)
+POST https://localhost:5001/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "password123"
+}
+
+### 2. Register (Kayıt olmak için - Public endpoint)
+POST https://localhost:5001/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "password123",
+  "firstName": "Test",
+  "lastName": "User"
+}
+
+### 3. Korumalı endpoint testi - Token olmadan (401 Unauthorized beklenir)
+GET https://localhost:5001/api/users/profile
+
+### 4. Korumalı endpoint testi - Token ile (200 OK beklenir)
+GET https://localhost:5001/api/users/profile
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
+
+### 5. Portfolio endpoint testi - Token ile
+GET https://localhost:5001/api/portfolios
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
+
+### 6. Stock endpoint testi - Token ile
+GET https://localhost:5001/api/stocks
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
+
+### 7. Notes endpoint testi - Token ile
+GET https://localhost:5001/api/notes
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
+
+### 8. AI endpoint testi - Token ile
+POST https://localhost:5001/api/ai/ask-simple
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
+Content-Type: application/json
+
+{
+  "question": "Borsa nasıl?"
+}
+
+### 9. Financial Statement endpoint testi - Token ile
+GET https://localhost:5001/api/financialstatement
+Authorization: Bearer YOUR_JWT_TOKEN_HERE

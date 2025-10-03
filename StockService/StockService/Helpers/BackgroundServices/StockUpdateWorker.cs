@@ -13,13 +13,13 @@ namespace StockService.BackgroundServices
 		private readonly ILogger<StockUpdateWorker> _logger;
 		private readonly IServiceScopeFactory _scopeFactory;
 		private readonly IHubContext<StockHub> _hubContext;
-		private readonly int _updateIntervalInMinutes; // Yeni alan
+		private readonly int _updateIntervalInMinutes; 
 
 		public StockUpdateWorker(
 			ILogger<StockUpdateWorker> logger,
 			IServiceScopeFactory scopeFactory,
 			IHubContext<StockHub> hubContext,
-			IConfiguration configuration) // IConfiguration eklendi
+			IConfiguration configuration) 
 		{
 			_logger = logger;
 			_scopeFactory = scopeFactory;

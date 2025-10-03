@@ -3,10 +3,13 @@ using FinancialStatementService.Business.Abstract;
 using FinancialStatementService.DataAccess.Abstract;
 using FinancialStatementService.DataAccess.Concrete;
 using FinancialStatementService.DataAccess.DbConnectionFactory;
+using Shared.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Artýk IHttpClientFactory'ye gerek yok
+builder.AddCentralizedLogging();
+
+// Artï¿½k IHttpClientFactory'ye gerek yok
 // builder.Services.AddHttpClient("FintablesClient", client => { ... });
 
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
@@ -20,6 +23,12 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// Merkezi JWT DoÄŸrulama
+builder.Services.AddCentralizedJwt(builder.Configuration);
+
+// Merkezi Authorization Policy'leri ekle
+builder.Services.AddCentralizedAuthorization();
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -30,6 +39,10 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+// Merkezi middleware'leri ekle
+app.UseCentralizedMiddleware();
+
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();

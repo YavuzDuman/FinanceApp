@@ -3,34 +3,31 @@ using Microsoft.AspNetCore.Mvc;
 using NoteService.Business;
 using NoteService.Entities;
 using System.Security.Claims;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.AspNetCore.Authorization;
+using Shared.Extensions;
+using Shared.Helpers;
 
 namespace NoteService.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize] // Güvenlik için geri eklendi - çift katmanlı koruma
     public class NotesController : ControllerBase
     {
         private readonly INotesManager _notesManager;
+        private readonly IMemoryCache _cache;
 
-		public NotesController(INotesManager notesManager)
+		public NotesController(INotesManager notesManager, IMemoryCache cache)
 		{
 			_notesManager = notesManager;
+			_cache = cache;
 		}
-		private int GetUserIdFromToken()
-		{
-			var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
-
-			if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
-			{
-				throw new InvalidOperationException("User ID claim is missing or invalid.");
-			}
-
-			return userId;
-		}
+		
 		[HttpPost]
 		public async Task<IActionResult> CreateNote([FromBody] NoteDto createDto)
 		{
-			var userId = GetUserIdFromToken();
+			var userId = await UserContextHelper.GetUserIdFromTokenCachedAsync(HttpContext, _cache);
 			var noteId = await _notesManager.CreateNoteAsync(createDto, userId);
 			return CreatedAtAction(nameof(GetNoteById), new { id = noteId }, null);
 		}
@@ -38,7 +35,7 @@ namespace NoteService.Controllers
 		[HttpGet]
 		public async Task<IActionResult> GetUserNotes()
 		{
-			var userId = GetUserIdFromToken();
+			var userId = await UserContextHelper.GetUserIdFromTokenCachedAsync(HttpContext, _cache);
 			var notes = await _notesManager.GetUserNotesAsync(userId);
 			return Ok(notes);
 		}
@@ -46,7 +43,7 @@ namespace NoteService.Controllers
 		[HttpGet("{id}")]
 		public async Task<IActionResult> GetNoteById(int id)
 		{
-			var userId = GetUserIdFromToken();
+			var userId = await UserContextHelper.GetUserIdFromTokenCachedAsync(HttpContext, _cache);
 			var note = await _notesManager.GetNoteByIdAsync(id, userId);
 
 			if (note == null)
@@ -60,7 +57,7 @@ namespace NoteService.Controllers
 		[HttpPut("{id}")]
 		public async Task<IActionResult> UpdateNote(int id, [FromBody] NoteDto updateDto)
 		{
-			var userId = GetUserIdFromToken();
+			var userId = await UserContextHelper.GetUserIdFromTokenCachedAsync(HttpContext, _cache);	
 			var isUpdated = await _notesManager.UpdateNoteAsync(id, updateDto, userId);
 
 			if (!isUpdated)
@@ -73,7 +70,7 @@ namespace NoteService.Controllers
 		[HttpDelete("{id}")]
 		public async Task<IActionResult> DeleteNote(int id)
 		{
-			var userId = GetUserIdFromToken();
+			var userId = await UserContextHelper.GetUserIdFromTokenCachedAsync(HttpContext, _cache);
 			var isDeleted = await _notesManager.DeleteNoteAsync(id, userId);
 
 			if (!isDeleted)

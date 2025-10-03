@@ -4,9 +4,13 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>00a08fb5-361d-4351-9f94-09f6cc810d6b</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="FluentValidation" Version="12.0.0" />
+    <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.1" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="11.11.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.20" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.9" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.9">
@@ -18,7 +22,14 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="9.0.9" />
+    <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
+    <PackageReference Include="Serilog.Enrichers.Environment" Version="3.0.1" />
+    <PackageReference Include="Serilog.Enrichers.Thread" Version="4.0.0" />
+    <PackageReference Include="Serilog.Sinks.MSSqlServer" Version="8.2.2" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+    <PackageReference Include="MassTransit" Version="8.2.3" />
+    <PackageReference Include="MassTransit.RabbitMQ" Version="8.2.3" />
   </ItemGroup>
 
   <ItemGroup>

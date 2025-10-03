@@ -6,6 +6,14 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
 using PortfolioService.Entities.Dtos;
+using MassTransit; 
+using Shared.Contracts; 
+using Microsoft.AspNetCore.Http;
+using System.IdentityModel.Tokens.Jwt; 
+using StackExchange.Redis; 
+using StockService.DataAccess.Redis; 
+using System.Net.Http.Headers; 
+using System; 
 
 namespace PortfolioService.Business.Concrete
 {
@@ -14,15 +22,32 @@ namespace PortfolioService.Business.Concrete
 		private readonly IPortfolioRepository _portfolioRepository;
 		private readonly HttpClient _httpClient;
 		private readonly string _stockServiceBaseUrl;
+		private readonly IRedisCacheService _redisCacheService;
+		private readonly string _redisKeyPrefix = "stock_";
+		private readonly TimeSpan _cacheExpiration = TimeSpan.FromMinutes(1);
 
-		public PortfolioManager(IPortfolioRepository portfolioRepository, HttpClient httpClient, IConfiguration configuration)
+
+		public PortfolioManager(
+			IPortfolioRepository portfolioRepository,
+			HttpClient httpClient,
+			IConfiguration configuration,
+			IRedisCacheService redisCacheService)
 		{
 			_portfolioRepository = portfolioRepository;
 			_httpClient = httpClient;
-			_stockServiceBaseUrl = configuration["StockService:BaseUrl"];
+			_stockServiceBaseUrl = configuration["StockService:BaseUrl"] ?? throw new InvalidOperationException("StockService:BaseUrl configuration is missing!");
+
+			// Debug: Configuration değerini logla
+			Console.WriteLine($"[PortfolioManager] StockService BaseUrl: {_stockServiceBaseUrl}");
+			_redisCacheService = redisCacheService;
 		}
 
 		// --- Portföy İşlemleri ---
+		public async Task<List<Portfolio>> GetAllPortfoliosAsync()
+		{
+			return await _portfolioRepository.GetAllPortfoliosAsync();
+		}
+
 		public async Task<List<Portfolio>> GetAllPortfoliosByUserIdAsync(int userId)
 		{
 			return await _portfolioRepository.GetAllPortfoliosByUserIdAsync(userId);
@@ -62,9 +87,10 @@ namespace PortfolioService.Business.Concrete
 		}
 
 		// --- Portföy Varlık (Item) İşlemleri ---
-		public async Task<PortfolioItem> AddItemToPortfolioAsync(int portfolioId, string symbol, decimal purchasePrice, int quantity)
+		public async Task<PortfolioItem> AddItemToPortfolioAsync(int portfolioId, string symbol, decimal purchasePrice, int quantity, HttpContext? httpContext = null)
 		{
-			var stock = await GetStockFromStockServiceAsync(symbol);
+			// GetStockFromStockServiceAsync artık Redis'i kontrol ediyor.
+			var stock = await GetStockFromStockServiceAsync(symbol, httpContext);
 			if (stock == null)
 			{
 				throw new InvalidOperationException($"Stock with symbol '{symbol}' not found in the Stock Service.");
@@ -76,7 +102,8 @@ namespace PortfolioService.Business.Concrete
 				Symbol = symbol,
 				PurchaseDate = DateTime.UtcNow,
 				AverageCost = purchasePrice,
-				Quantity = quantity
+				Quantity = quantity,
+				CurrentPrice = stock.CurrentPrice
 			};
 
 			await _portfolioRepository.AddPortfolioItemAsync(item);
@@ -102,67 +129,154 @@ namespace PortfolioService.Business.Concrete
 		}
 
 		// --- İş Mantığı ve Servisler Arası İletişim ---
-		public async Task<decimal> GetTotalPortfolioValueAsync(int portfolioId)
+		public async Task<TotalValueDto> GetTotalPortfolioValueAsync(int portfolioId, HttpContext? httpContext = null)
 		{
 			var portfolio = await _portfolioRepository.GetPortfolioByIdAsync(portfolioId);
-			if (portfolio == null || !portfolio.PortfolioItems.Any())
+			if (portfolio == null || portfolio.PortfolioItems == null)
 			{
-				return 0;
+				return null;
 			}
 
-			decimal totalValue = 0;
+			TotalValueDto totalValue = new();
 			foreach (var item in portfolio.PortfolioItems)
 			{
-				var stock = await GetStockFromStockServiceAsync(item.Symbol);
+				// Redis'i kullanan metodumuz çağrılıyor
+				var stock = await GetStockFromStockServiceAsync(item.Symbol, httpContext);
 				if (stock != null)
 				{
-					totalValue += stock.CurrentPrice * item.Quantity;
+					totalValue.TotalValue += stock.CurrentPrice * item.Quantity;
+					totalValue.Symbol = item.Symbol;
 				}
 			}
 			return totalValue;
 		}
 
-		public async Task<decimal> GetTotalProfitLossAsync(int portfolioId)
+		public async Task<ProfitLossDto> GetTotalProfitLossAsync(int portfolioId, HttpContext? httpContext = null)
 		{
 			var portfolio = await _portfolioRepository.GetPortfolioByIdAsync(portfolioId);
-			if (portfolio == null || !portfolio.PortfolioItems.Any())
+			if (portfolio == null || portfolio.PortfolioItems == null)
 			{
-				return 0;
+				return null;
 			}
-			decimal totalProfitLoss = 0;
-			foreach(var item in portfolio.PortfolioItems)
+			ProfitLossDto profitLossDto = new();
+			foreach (var item in portfolio.PortfolioItems)
 			{
-				var stock = await GetStockFromStockServiceAsync(item.Symbol);
+				// Redis'i kullanan metodumuz çağrılıyor
+				var stock = await GetStockFromStockServiceAsync(item.Symbol, httpContext);
 				if (stock != null)
 				{
 					var currentValue = stock.CurrentPrice * item.Quantity;
 					var investedValue = item.AverageCost * item.Quantity;
-					totalProfitLoss += (currentValue - investedValue);
+					profitLossDto.ProfitLossValue += (currentValue - investedValue);
+					profitLossDto.Symbol = item.Symbol;
 				}
 			}
-			return totalProfitLoss;
+			return profitLossDto;
 		}
 
-		private async Task<StockDto> GetStockFromStockServiceAsync(string symbol)
+		// --- Redis Cache-Aside ve HTTP İstek Metodu ---
+		private async Task<StockDto> GetStockFromStockServiceAsync(string symbol, HttpContext? httpContext = null)
 		{
+			var redisKey = $"{_redisKeyPrefix}{symbol}";
+
+			// -----------------------------------------------------------------
+			// 1. ÖNCE REDIS'İ KONTROL ET (CACHE READ)
+			// -----------------------------------------------------------------
 			try
 			{
-				using var response = await _httpClient.GetAsync($"{_stockServiceBaseUrl}/api/stocks/{symbol}");
+				// Güncellenen arayüz metodu GetStringAsync çağrılıyor
+				var cachedJson = await _redisCacheService.GetStringAsync(redisKey);
+				if (!string.IsNullOrEmpty(cachedJson))
+				{
+					// Cache Hit: Redis'te bulundu, anında döndür
+					var cachedStockDto = JsonSerializer.Deserialize<StockDto>(cachedJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+					Console.WriteLine($"[PortfolioManager] Cache Hit: Retrieved stock {symbol} from Redis.");
+					return cachedStockDto;
+				}
+				Console.WriteLine($"[PortfolioManager] Cache Miss: Stock {symbol} not found in Redis. Proceeding with HTTP request.");
+			}
+			catch (Exception ex)
+			{
+				// Redis bağlantı hatası durumunda bile HTTP isteğine geç.
+				Console.WriteLine($"[PortfolioManager] Redis read error: {ex.Message}. Proceeding with HTTP request.");
+			}
+
+			// -----------------------------------------------------------------
+			// 2. HTTP İSTEĞİ (CACHE MISS veya REDIS HATASI VARSA)
+			// -----------------------------------------------------------------
+
+			var requestUrl = $"{_stockServiceBaseUrl}/api/stocks/{symbol}";
+
+			try
+			{
+				Console.WriteLine($"[PortfolioManager] Making request to: {requestUrl}");
+
+				using var request = new HttpRequestMessage(HttpMethod.Get, requestUrl);
+
+				// Authorization header'ı ekle (HttpContext'ten)
+				if (httpContext != null && httpContext.Request.Headers.TryGetValue("Authorization", out var authHeader))
+				{
+					request.Headers.Add("Authorization", authHeader.ToString());
+					Console.WriteLine($"[PortfolioManager] Added Authorization header from HttpContext");
+				}
+
+				using var response = await _httpClient.SendAsync(request);
+
+				Console.WriteLine($"[PortfolioManager] Response Status: {response.StatusCode}");
+
 				if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
 				{
+					Console.WriteLine($"[PortfolioManager] Stock {symbol} not found in StockService");
 					return null;
 				}
+
+				if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+				{
+					Console.WriteLine($"[PortfolioManager] Unauthorized - JWT token may be invalid or expired");
+					throw new UnauthorizedAccessException("StockService authentication failed. Please check JWT token.");
+				}
+
 				response.EnsureSuccessStatusCode();
 				var json = await response.Content.ReadAsStringAsync();
 				var stockDto = JsonSerializer.Deserialize<StockDto>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+				// -----------------------------------------------------------------
+				// 3. CACHE'E YAZMA (Başarılı HTTP isteği sonrası)
+				// -----------------------------------------------------------------
+				try
+				{
+					// Başarılı sonucu Redis'e yaz (GetStringAsync ile uyumlu)
+					await _redisCacheService.SetStringAsync(redisKey, json, _cacheExpiration);
+					Console.WriteLine($"[PortfolioManager] Wrote stock {symbol} to Redis cache with expiration {_cacheExpiration.TotalSeconds} seconds.");
+				}
+				catch (Exception ex)
+				{
+					// Cache'e yazma hatası, ana iş akışını durdurmamalı.
+					Console.WriteLine($"[PortfolioManager] Redis write failed: {ex.Message}");
+				}
+
+				Console.WriteLine($"[PortfolioManager] Successfully retrieved stock: {symbol}");
 				return stockDto;
 			}
 			catch (HttpRequestException ex)
 			{
-				throw new InvalidOperationException("Failed to connect to the Stock Service.", ex);
+				Console.WriteLine($"[PortfolioManager] HTTP Request failed: {ex.Message}");
+				throw new InvalidOperationException($"Failed to connect to the Stock Service. URL: {requestUrl}", ex);
+			}
+			catch (TaskCanceledException ex)
+			{
+				Console.WriteLine($"[PortfolioManager] Request timeout: {ex.Message}");
+				throw new InvalidOperationException($"Request to Stock Service timed out. URL: {requestUrl}", ex);
+			}
+			catch (UnauthorizedAccessException)
+			{
+				throw; // Re-throw unauthorized exceptions
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine($"[PortfolioManager] Unexpected error: {ex.Message}");
+				throw new InvalidOperationException($"Unexpected error when connecting to Stock Service: {ex.Message}", ex);
 			}
 		}
 	}
-
-	
 }

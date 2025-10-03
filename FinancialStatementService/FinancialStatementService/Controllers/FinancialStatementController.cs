@@ -1,10 +1,12 @@
 ﻿using FinancialStatementService.Business.Abstract;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace FinancialStatementService.Controllers
 {
 	[Route("api/[controller]")]
 	[ApiController]
+	[Authorize]
 	public class FinancialStatementController : ControllerBase
 	{
 		private readonly IFinancialStatementManager _financialStatementManager;
@@ -30,6 +32,7 @@ namespace FinancialStatementService.Controllers
 
 		// Bilanço verilerini Fintables'tan çekip veritabanına kaydeder
 		[HttpPost("fetch-and-save")]
+		[Authorize(Policy = "AdminOnly")] // Sadece Admin bu işlemi yapabilir
 		public async Task<IActionResult> FetchAndSaveFinancialStatements()
 		{
 			try

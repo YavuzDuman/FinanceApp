@@ -3,9 +3,11 @@ using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
 using System.Net.Http;
 using LLMService.Entities;
+using Microsoft.AspNetCore.Authorization;
 
 [ApiController]
 [Route("[controller]")]
+[Authorize]
 public class AIController : ControllerBase
 {
 	private readonly IHttpClientFactory _httpClientFactory;

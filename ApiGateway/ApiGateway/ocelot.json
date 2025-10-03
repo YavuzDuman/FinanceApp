@@ -1,0 +1,159 @@
+{
+  "Routes": [
+    {
+      "DownstreamPathTemplate": "/api/auth/{everything}",
+      "DownstreamScheme": "https",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "localhost",
+          "Port": 7079
+        }
+      ],
+      "UpstreamPathTemplate": "/api/auth/{everything}",
+      "UpstreamHttpMethod": [ "Post", "Get", "Put", "Delete" ],
+      "Priority": 1
+    },
+    {
+      "DownstreamPathTemplate": "/api/users/{everything}",
+      "DownstreamScheme": "https",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "localhost",
+          "Port": 7079
+        }
+      ],
+      "UpstreamPathTemplate": "/api/users/{everything}",
+      "UpstreamHttpMethod": [ "Post", "Get", "Put", "Delete" ],
+      "Priority": 1,
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "OcelotAuthScheme",
+        "AllowedScopes": []
+      },
+      "AddClaimsToRequest": [
+        {
+          "Type": "sub",
+          "Value": "{claim_value}",
+          "Key": "X-User-ID"
+        }
+      ]
+    },
+    {
+      "DownstreamPathTemplate": "/api/stocks/{everything}",
+      "DownstreamScheme": "https",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "localhost",
+          "Port": 7208
+        }
+      ],
+      "UpstreamPathTemplate": "/api/stocks/{everything}",
+      "UpstreamHttpMethod": [ "Get", "Post" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "OcelotAuthScheme",
+        "AllowedScopes": []
+      },
+      "AddClaimsToRequest": [
+        {
+          "Type": "sub", 
+          "Value": "{claim_value}",
+          "Key": "X-User-ID" 
+        }
+      ]
+    },
+    {
+      "DownstreamPathTemplate": "/api/portfolios/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "localhost",
+          "Port": 5082
+        }
+      ],
+      "UpstreamPathTemplate": "/api/portfolios/{everything}",
+      "UpstreamHttpMethod": [ "Get", "Post", "Put", "Delete" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "OcelotAuthScheme", 
+        "AllowedScopes": []
+      },
+      "AddClaimsToRequest": [
+        {
+          "Type": "sub",
+          "Value": "{claim_value}",
+          "Key": "X-User-ID"
+        }
+      ]
+    },
+    {
+      "DownstreamPathTemplate": "/ai/{everything}",
+      "DownstreamScheme": "https",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "localhost",
+          "Port": 7211
+        }
+      ],
+      "UpstreamPathTemplate": "/api/ai/{everything}",
+      "UpstreamHttpMethod": [ "Post" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "OcelotAuthScheme", 
+        "AllowedScopes": []
+      },
+      "AddClaimsToRequest": [
+        {
+          "Type": "sub",
+          "Value": "{claim_value}",
+          "Key": "X-User-ID"
+        }
+      ]
+    },
+    {
+      "DownstreamPathTemplate": "/api/notes/{everything}",
+      "DownstreamScheme": "https",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "localhost",
+          "Port": 7260
+        }
+      ],
+      "UpstreamPathTemplate": "/api/notes/{everything}",
+      "UpstreamHttpMethod": [ "Get", "Post", "Put", "Delete" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "OcelotAuthScheme",
+        "AllowedScopes": []
+      },
+      "AddClaimsToRequest": [
+        {
+          "Type": "sub",
+          "Value": "{claim_value}",
+          "Key": "X-User-ID"
+        }
+      ]
+    },
+    {
+      "DownstreamPathTemplate": "/api/financialstatement/{everything}",
+      "DownstreamScheme": "https",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "localhost",
+          "Port": 7043
+        }
+      ],
+      "UpstreamPathTemplate": "/api/financialstatement/{everything}",
+      "UpstreamHttpMethod": [ "Get", "Post" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "OcelotAuthScheme", 
+        "AllowedScopes": []
+      },
+      "AddClaimsToRequest": [
+        {
+          "Type": "sub",
+          "Value": "{claim_value}",
+          "Key": "X-User-ID"
+        }
+      ]
+    }
+  ],
+  "GlobalConfiguration": {
+    "BaseUrl": "https://localhost:5000"
+  }
+}

@@ -3,6 +3,8 @@ using StockService.DataAccess.Abstract;
 using StockService.DataAccess.Redis; // Redis servisi için
 using StockService.Entities.Concrete;
 using System.Text.Json; // JSON serileştirme için
+using MassTransit;
+using Shared.Contracts;
 
 namespace StockService.Business.Concrete
 {
@@ -10,16 +12,19 @@ namespace StockService.Business.Concrete
 	{
 		private readonly IStockRepository _stockRepository;
 		private readonly IExternalApiService _externalApiService;
-		private readonly IRedisCacheService _redisCacheService; // Redis servisini enjekte et
+        private readonly IRedisCacheService _redisCacheService; // Redis servisini enjekte et
+        private readonly IPublishEndpoint _publishEndpoint;
 
 		public StockManager(
 			IStockRepository stockRepository,
-			IExternalApiService externalApiService,
-			IRedisCacheService redisCacheService) // Constructor'a ekle
+            IExternalApiService externalApiService,
+            IRedisCacheService redisCacheService,
+            IPublishEndpoint publishEndpoint) // Constructor'a ekle
 		{
 			_stockRepository = stockRepository;
 			_externalApiService = externalApiService;
-			_redisCacheService = redisCacheService;
+            _redisCacheService = redisCacheService;
+            _publishEndpoint = publishEndpoint;
 		}
 
 		public async Task<List<Stock>> GetAllStocksAsync()
@@ -54,19 +59,27 @@ namespace StockService.Business.Concrete
 				return;
 			}
 
-			await _stockRepository.BulkUpsertAsync(stocksFromApi);
+            await _stockRepository.BulkUpsertAsync(stocksFromApi);
 
 			var cacheKey = "stocks:data:all";
 			await _redisCacheService.SetValueAsync(
 				cacheKey,
 				JsonSerializer.Serialize(stocksFromApi),
 				TimeSpan.FromMinutes(10));
+
+            // Event yayınla: her hisse için güncel fiyatı gönder
+            foreach (var s in stocksFromApi)
+            {
+                await _publishEndpoint.Publish(new StockPriceUpdated(
+                    s.Symbol,
+                    s.CurrentPrice,
+                    DateTime.UtcNow
+                ));
+            }
 		}
 
 		public async Task<Stock?> GetStockBySymbolAsync(string symbol)
 		{
-			// Bu metot IStockManager'da tanımlı olduğu için eklenmiştir.
-			// Eğer tekil hisse senedi verisini de cache'te tutmak istersen buraya cacheleme mantığı ekleyebilirsin.
 			return await _stockRepository.GetBySymbolAsync(symbol);
 		}
 	}

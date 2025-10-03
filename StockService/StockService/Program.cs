@@ -7,13 +7,35 @@ using StockService.DataAccess.Context;
 using StockService.DataAccess.Redis;
 using StackExchange.Redis; 
 using StockService.BackgroundServices; 
+using MassTransit;
+using StockService.Helpers;
+using Shared.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.AddCentralizedLogging();
+
+builder.Services.AddMassTransit(x =>
+{
+    x.SetKebabCaseEndpointNameFormatter();
+    x.UsingRabbitMq((context, cfg) =>
+    {
+        var uri = builder.Configuration.GetValue<string>("RabbitMQ:Uri");
+        cfg.Host(new Uri(uri));
+        cfg.ConfigureEndpoints(context);
+    });
+});
 
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// Merkezi JWT DoÄŸrulama
+builder.Services.AddCentralizedJwt(builder.Configuration);
+
+// Merkezi Authorization Policy'leri ekle
+builder.Services.AddCentralizedAuthorization();
 
 // DbContext
 builder.Services.AddDbContext<StockDbContext>(options =>
@@ -22,8 +44,8 @@ builder.Services.AddDbContext<StockDbContext>(options =>
 // DI Container'a servisleri ekle
 builder.Services.AddHttpClient();
 
-// Redis baðlantýsýný singleton olarak ekle
-// Bu, uygulamanýn yaþam döngüsü boyunca tek bir Redis baðlantýsýnýn kullanýlmasýný saðlar.
+// Redis baï¿½lantï¿½sï¿½nï¿½ singleton olarak ekle
+// Bu, uygulamanï¿½n yaï¿½am dï¿½ngï¿½sï¿½ boyunca tek bir Redis baï¿½lantï¿½sï¿½nï¿½n kullanï¿½lmasï¿½nï¿½ saï¿½lar.
 builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 {
 	var config = builder.Configuration.GetValue<string>("Redis:Configuration");
@@ -36,7 +58,7 @@ builder.Services.AddSingleton<IRedisCacheService, RedisCacheService>();
 // SignalR servisini ekle
 builder.Services.AddSignalR();
 
-// Diðer servislerin kaydý
+// Diï¿½er servislerin kaydï¿½
 builder.Services.AddScoped<IExternalApiService, ExternalApiService>();
 builder.Services.AddScoped<IStockRepository, StockRepository>();
 builder.Services.AddScoped<IStockManager, StockManager>();
@@ -55,18 +77,22 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// Routing'i ve Authorization'ý etkinleþtir
+// Merkezi middleware'leri ekle
+app.UseCentralizedMiddleware();
+
+// Routing'i ve Authorization'ï¿½ etkinleï¿½tir
 app.UseRouting();
+app.UseAuthentication();
 app.UseAuthorization();
 
-// SignalR Hub'ý haritalandýr
+// SignalR Hub'ï¿½ haritalandï¿½r
 app.UseEndpoints(endpoints =>
 {
 	endpoints.MapControllers();
 	endpoints.MapHub<StockService.Hubs.StockHub>("/stockHub");
 });
 
-// Veritabaný migrate iþlemi
+// Veritabanï¿½ migrate iï¿½lemi
 try
 {
 	using (var scope = app.Services.CreateScope())

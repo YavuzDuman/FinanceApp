@@ -21,6 +21,8 @@ namespace UserService.DataAccess.Concrete
 		public async Task<User?> LoginUserAsync(User user, CancellationToken ct = default)
 		{
 			var LoggedUser = await _context.Users
+				.Include(u => u.UserRoles)  // ✅ UserRoles'ı include et
+				.ThenInclude(ur => ur.Role) // ✅ Role bilgilerini de include et
 				.FirstOrDefaultAsync(u => u.Username == user.Username, ct);
 
 			if (LoggedUser is null)
@@ -34,6 +36,8 @@ namespace UserService.DataAccess.Concrete
 		}
 		public async Task RegisterUserAsync(User user, CancellationToken ct = default)
 		{
+			if(ExistsByUsernameOrEmailAsync(user.Username, user.Email, ct).Result)
+				throw new Exception("Bu kullanıcı adı veya e-posta zaten kayıtlı.");
 			user.Password = _passwordHasher.HashPassword(user.Password);
 			user.InsertDate = DateTime.Now;
 

@@ -17,6 +17,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FinancialStatementService",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LLMService", "LLMService\LLMService\LLMService.csproj", "{EB226202-75CA-4575-9D51-8507408EC964}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ApiGateway", "ApiGateway\ApiGateway\ApiGateway.csproj", "{AEF45B93-718C-4184-ABC9-6E8931DDABE8}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -51,6 +53,10 @@ Global
 		{EB226202-75CA-4575-9D51-8507408EC964}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{EB226202-75CA-4575-9D51-8507408EC964}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{EB226202-75CA-4575-9D51-8507408EC964}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AEF45B93-718C-4184-ABC9-6E8931DDABE8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AEF45B93-718C-4184-ABC9-6E8931DDABE8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AEF45B93-718C-4184-ABC9-6E8931DDABE8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AEF45B93-718C-4184-ABC9-6E8931DDABE8}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

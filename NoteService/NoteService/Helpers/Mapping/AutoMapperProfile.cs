@@ -12,7 +12,6 @@ namespace UserService.Helpers.Mapping
 				.ForMember(dest => dest.UserId, opt => opt.Ignore())
 				.ForMember(dest => dest.LastModifiedDate, opt => opt.Ignore());
 
-			// Note'dan NoteDto'ya dönüşüm için:
 			CreateMap<Note, NoteDto>();
 		}
 	}
