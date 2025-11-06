@@ -82,46 +82,206 @@ builder.Services.AddHttpClient();
 
 // Redis ba�lant�s�n� singleton olarak ekle
 // Bu, uygulaman�n ya�am d�ng�s� boyunca tek bir Redis ba�lant�s�n�n kullan�lmas�n� sa�lar.
+// Redis bağlantısı ZORUNLU - Veriler Redis'e yazılacak
+var redisConfig = builder.Configuration.GetValue<string>("Redis:Configuration");
+
+if (string.IsNullOrWhiteSpace(redisConfig))
+{
+    Console.WriteLine("═══════════════════════════════════════════════════════");
+    Console.WriteLine("HATA: Redis yapılandırması bulunamadı!");
+    Console.WriteLine("Redis bağlantısı için 'Redis:Configuration' ayarını yapılandırın.");
+    Console.WriteLine("Örnek format: rediss://default:password@host:port");
+    Console.WriteLine("═══════════════════════════════════════════════════════");
+    throw new InvalidOperationException("Redis configuration is required. Please set 'Redis:Configuration' in appsettings.json or environment variables.");
+}
+
 builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 {
-    var config = builder.Configuration.GetValue<string>("Redis:Configuration");
-    if (string.IsNullOrWhiteSpace(config))
-        throw new ArgumentException("Redis configuration is missing", nameof(config));
-
     try
     {
-        // Upstash rediss:// URL'si verilmişse güvenli şekilde parse et ve TLS + retry ayarlarıyla bağlan
-        if (config.StartsWith("rediss://", StringComparison.OrdinalIgnoreCase))
+        ConfigurationOptions options;
+        
+        // Upstash rediss:// veya redis:// URL'si verilmişse parse et
+        if (redisConfig.StartsWith("rediss://", StringComparison.OrdinalIgnoreCase) || 
+            redisConfig.StartsWith("redis://", StringComparison.OrdinalIgnoreCase))
         {
-            var uri = new Uri(config);
-            var password = uri.UserInfo?.StartsWith(":") == true ? uri.UserInfo.Substring(1) : uri.UserInfo;
+            // URI parsing - port bilgisi eksik olabilir, manuel parse et
+            string host;
+            int port;
+            string? password = null;
+            bool useSsl = redisConfig.StartsWith("rediss://", StringComparison.OrdinalIgnoreCase);
+            
+            try
+            {
+                // URI'yi parse et - port bilgisi olmayabilir (Upstash için)
+                var uriString = redisConfig;
+                
+                // Önce normal URI parsing dene
+                Uri? uri = null;
+                try
+                {
+                    uri = new Uri(uriString);
+                    // Eğer port -1 ise (port belirtilmemiş), manuel parse et
+                    if (uri.Port == -1)
+                    {
+                        uri = null; // Manuel parse'e geç
+                    }
+                }
+                catch
+                {
+                    // URI parse edilemedi, manuel parse'e geç
+                    uri = null;
+                }
+                
+                if (uri != null)
+                {
+                    // Normal URI parsing başarılı
+                    host = uri.Host;
+                    port = uri.Port;
+                    
+                    // Port kontrolü
+                    if (port <= 0 || port > 65535)
+                    {
+                        port = useSsl ? 6380 : 6379;
+                        Console.WriteLine($"UYARI: Redis URI'de geçerli port bulunamadı. Varsayılan port kullanılıyor: {port}");
+                    }
+                    
+                    // UserInfo'dan password'ü çıkar
+                    if (!string.IsNullOrEmpty(uri.UserInfo))
+                    {
+                        var userInfoParts = uri.UserInfo.Split(':');
+                        if (userInfoParts.Length >= 2)
+                        {
+                            password = string.Join(":", userInfoParts.Skip(1));
+                        }
+                        else if (userInfoParts.Length == 1 && userInfoParts[0].StartsWith(":"))
+                        {
+                            password = userInfoParts[0].Substring(1);
+                        }
+                        else
+                        {
+                            password = userInfoParts[0];
+                        }
+                    }
+                }
+                else
+                {
+                    // Manuel parse - port bilgisi yoksa (Upstash formatı: rediss://default:password@host)
+                    var parts = uriString.Split('@');
+                    if (parts.Length == 2)
+                    {
+                        var userPass = parts[0].Replace("rediss://", "").Replace("redis://", "");
+                        var hostPart = parts[1];
+                        
+                        var userPassParts = userPass.Split(':');
+                        if (userPassParts.Length >= 2)
+                        {
+                            password = string.Join(":", userPassParts.Skip(1));
+                        }
+                        
+                        // Host'ta port var mı kontrol et
+                        var hostParts = hostPart.Split(':');
+                        if (hostParts.Length == 2 && int.TryParse(hostParts[1], out var parsedPort))
+                        {
+                            host = hostParts[0];
+                            port = parsedPort;
+                        }
+                        else
+                        {
+                            host = hostPart;
+                            port = useSsl ? 6380 : 6379; // Varsayılan port
+                        }
+                    }
+                    else
+                    {
+                        throw new ArgumentException("Redis URI formatı geçersiz. Örnek: rediss://default:password@host:port veya rediss://default:password@host");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"═══════════════════════════════════════════════════════");
+                Console.WriteLine($"HATA: Redis URI parse edilemedi!");
+                Console.WriteLine($"URI (ilk 50 karakter): {redisConfig.Substring(0, Math.Min(50, redisConfig.Length))}...");
+                Console.WriteLine($"Hata: {ex.Message}");
+                Console.WriteLine($"═══════════════════════════════════════════════════════");
+                throw new ArgumentException($"Geçersiz Redis URI formatı. Örnek: rediss://default:password@host:port veya rediss://default:password@host", ex);
+            }
 
-            var options = new ConfigurationOptions
+            options = new ConfigurationOptions
             {
                 AbortOnConnectFail = false,
-                Ssl = true,
-                ConnectRetry = 3,
-                ConnectTimeout = 5000
+                Ssl = useSsl,
+                ConnectRetry = 5,
+                ConnectTimeout = 10000,
+                SyncTimeout = 5000,
+                AsyncTimeout = 5000
             };
-            options.EndPoints.Add(uri.Host, uri.Port == -1 ? 6379 : uri.Port);
-            if (!string.IsNullOrEmpty(password)) options.Password = password;
 
-            return ConnectionMultiplexer.Connect(options);
+            options.EndPoints.Add(host, port);
+            
+            if (!string.IsNullOrEmpty(password))
+            {
+                options.Password = password;
+            }
+
+            Console.WriteLine($"Redis bağlantısı kuruluyor: {host}:{port} (SSL: {useSsl})");
+            
+            var connection = ConnectionMultiplexer.Connect(options);
+            
+            // Bağlantı durumunu kontrol et
+            if (connection.IsConnected)
+            {
+                Console.WriteLine("✓ Redis bağlantısı başarıyla kuruldu!");
+            }
+            else
+            {
+                Console.WriteLine("⚠ UYARI: Redis bağlantısı kuruldu ancak henüz bağlı değil. Bağlantı kurulmaya çalışılıyor...");
+            }
+            
+            return connection;
         }
-
-        // Anahtar=değer formatı için doğrudan bağlan (abortConnect=false eklemen önerilir)
-        return ConnectionMultiplexer.Connect(config);
+        else
+        {
+            // Anahtar=değer formatı veya connection string formatı için
+            Console.WriteLine("Redis connection string formatı kullanılıyor (rediss:// değil)");
+            
+            // abortConnect=false ekle (yoksa)
+            var configWithAbort = redisConfig;
+            if (!configWithAbort.Contains("abortConnect", StringComparison.OrdinalIgnoreCase))
+            {
+                configWithAbort += ",abortConnect=false";
+            }
+            
+            var connection = ConnectionMultiplexer.Connect(configWithAbort);
+            
+            if (connection.IsConnected)
+            {
+                Console.WriteLine("✓ Redis bağlantısı başarıyla kuruldu!");
+            }
+            
+            return connection;
+        }
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"Redis connect failed: {ex.Message}");
-        // Bağlantı kurulamasa bile uygulamanın ayağa kalkması için abortConnect=false ile tekrar denemeye devam et
-        return ConnectionMultiplexer.Connect(config + (config.Contains("abortConnect", StringComparison.OrdinalIgnoreCase) ? string.Empty : ",abortConnect=false"));
+        Console.WriteLine($"═══════════════════════════════════════════════════════");
+        Console.WriteLine($"HATA: Redis bağlantısı kurulamadı!");
+        Console.WriteLine($"Hata mesajı: {ex.Message}");
+        Console.WriteLine($"Hata tipi: {ex.GetType().Name}");
+        if (ex.InnerException != null)
+        {
+            Console.WriteLine($"İç hata: {ex.InnerException.Message}");
+        }
+        Console.WriteLine($"Redis Config (ilk 50 karakter): {redisConfig?.Substring(0, Math.Min(50, redisConfig.Length ?? 0))}...");
+        Console.WriteLine($"═══════════════════════════════════════════════════════");
+        throw; // Redis zorunlu olduğu için hatayı fırlat
     }
 });
 
 // RedisCacheService'i de singleton olarak ekle
 builder.Services.AddSingleton<IRedisCacheService, RedisCacheService>();
+Console.WriteLine("Redis servisi yapılandırıldı.");
 
 // SignalR servisini ekle
 builder.Services.AddSignalR();

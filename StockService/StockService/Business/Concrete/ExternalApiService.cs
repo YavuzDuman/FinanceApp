@@ -21,7 +21,7 @@ namespace StockService.Business.Concrete
 
 			var startInfo = new ProcessStartInfo
 			{
-				FileName = "python",
+				FileName = "python3",
 				Arguments = pythonScriptPath,
 				UseShellExecute = false,
 				RedirectStandardOutput = true,
@@ -40,8 +40,8 @@ namespace StockService.Business.Concrete
 					var outputTask = process.StandardOutput.ReadToEndAsync();
 					var errorTask = process.StandardError.ReadToEndAsync();
 
-					// 60 saniyelik bir zaman aşımı belirle
-					var timeoutTask = Task.Delay(TimeSpan.FromSeconds(60));
+					// 90 saniyelik bir zaman aşımı belirle (0.1 CPU'da işlemler daha yavaş olabilir)
+					var timeoutTask = Task.Delay(TimeSpan.FromSeconds(90));
 
 					// İşlem, çıktı okuma veya zaman aşımı görevlerinden hangisi önce biterse
 					var completedTask = await Task.WhenAny(outputTask, errorTask, timeoutTask);
@@ -102,7 +102,7 @@ namespace StockService.Business.Concrete
 
 			var startInfo = new ProcessStartInfo
 			{
-				FileName = "python",
+				FileName = "python3",
 				Arguments = $"{pythonScriptPath} historical {symbol} {period} {interval}",
 				UseShellExecute = false,
 				RedirectStandardOutput = true,
@@ -135,41 +135,20 @@ namespace StockService.Business.Concrete
 				var jsonOutput = outputTask.Result;
 				var errorOutput = errorTask.Result;
 
-				Console.WriteLine($"[PYTHON] Exit Code: {process.ExitCode}");
-				Console.WriteLine($"[PYTHON] Output Length: {jsonOutput?.Length ?? 0}");
-				if (!string.IsNullOrEmpty(errorOutput))
-				{
-					Console.WriteLine($"[PYTHON] Error Output: {errorOutput}");
-				}
-
 				if (process.ExitCode == 0)
 				{
 					if (!string.IsNullOrEmpty(jsonOutput))
 					{
-						Console.WriteLine($"[PYTHON] First 200 chars: {jsonOutput.Substring(0, Math.Min(200, jsonOutput.Length))}");
-						
 						var options = new JsonSerializerOptions
 						{
 							PropertyNameCaseInsensitive = true
 						};
 						historicalData = JsonSerializer.Deserialize<List<StockHistoricalData>>(jsonOutput, options);
-						Console.WriteLine($"[DESERIALIZE] Success! Item count: {historicalData?.Count ?? 0}");
-						
-						if (historicalData != null && historicalData.Any())
-						{
-							var first = historicalData.First();
-							Console.WriteLine($"[DESERIALIZE] First item - Date: {first.Date}, Close: {first.Close}");
-						}
-					}
-					else
-					{
-						Console.WriteLine("[PYTHON] JSON output boş!");
 					}
 				}
-				else
+				else if (!string.IsNullOrEmpty(errorOutput))
 				{
-					Console.Error.WriteLine($"[HATA] Python exit code: {process.ExitCode}");
-					Console.Error.WriteLine($"[HATA] Error: {errorOutput}");
+					Console.Error.WriteLine($"[HATA] Python exit code: {process.ExitCode}, Error: {errorOutput.Substring(0, Math.Min(200, errorOutput.Length))}");
 				}
 				}
 				catch (Exception ex)
