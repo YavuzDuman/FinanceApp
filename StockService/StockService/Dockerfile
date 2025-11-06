@@ -2,8 +2,9 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 COPY . .
-RUN dotnet restore
-RUN dotnet publish -c Release -o /app/out
+# Sadece ilgili projeyi restore/publish et (diğer projelerdeki sürüm farkları restore'u etkilemesin)
+RUN dotnet restore StockService/StockService/StockService.csproj
+RUN dotnet publish StockService/StockService/StockService.csproj -c Release -o /app/out
 
 ## Run stage
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
