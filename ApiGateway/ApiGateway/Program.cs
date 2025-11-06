@@ -90,8 +90,6 @@ builder.Services.AddAuthentication()
 
 // Authorization servisini ekle
 builder.Services.AddAuthorization();
-// Health checks
-builder.Services.AddHealthChecks();
 
 // Ocelot servislerini konteynere ekleyin
 builder.Services.AddOcelot();
@@ -112,18 +110,6 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// En erken noktada health isteklerini kısa devre yap (Ocelot'a gitmeden yanıtla)
-app.Use(async (ctx, next) =>
-{
-    if (string.Equals(ctx.Request.Path.Value, "/health", StringComparison.OrdinalIgnoreCase))
-    {
-        ctx.Response.ContentType = "text/plain";
-        await ctx.Response.WriteAsync("OK");
-        return;
-    }
-    await next();
-});
-
 // ----------------------------------------------------------------------------------
 // 1. Yönlendirmeyi (Routing) başlat
 app.UseRouting();
@@ -137,17 +123,6 @@ app.UseAuthorization();
 
 // 4. Endpointleri ve Controller'ları haritalayın (AuthProxyController burada çalışır)
 app.MapControllers();
-// Health endpoint (gateway'in kendi sağlığı)
-app.MapHealthChecks("/health");
-// Ocelot'un yakalamasını kesin olarak engellemek için kısa devre sağlık doğrulaması
-app.Map("/health", branch =>
-{
-    branch.Run(async context =>
-    {
-        context.Response.ContentType = "text/plain";
-        await context.Response.WriteAsync("OK");
-    });
-});
 
 // 5. OCELOT'u en sona yakın çalıştırın (MapControllers'a gitmeyen tüm yönlendirmeler Ocelot'a kalır)
 await app.UseOcelot();
