@@ -88,6 +88,14 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
+// Health Checks (service kayıtları Build'ten ÖNCE olmalı)
+builder.Services.AddHealthChecks();
+// Response Compression (gzip/brotli)
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+});
+
 builder.Services.AddControllers()
 	.AddFluentValidation(fv =>
 	{
@@ -103,15 +111,6 @@ builder.Services.AddSwaggerGen();
 
 
 var app = builder.Build();
-
-// Health Checks
-builder.Services.AddHealthChecks();
-
-// Response Compression (gzip/brotli)
-builder.Services.AddResponseCompression(options =>
-{
-    options.EnableForHttps = true;
-});
 
 if (app.Environment.IsDevelopment())
 {
