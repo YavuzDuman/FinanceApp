@@ -123,6 +123,8 @@ app.UseAuthorization();
 
 // 4. Endpointleri ve Controller'ları haritalayın (AuthProxyController burada çalışır)
 app.MapControllers();
+// Root path friendly message to avoid Ocelot warnings for GET /
+app.MapGet("/", () => Results.Ok("API Gateway running"));
 
 // 5. OCELOT'u en sona yakın çalıştırın (MapControllers'a gitmeyen tüm yönlendirmeler Ocelot'a kalır)
 await app.UseOcelot();
