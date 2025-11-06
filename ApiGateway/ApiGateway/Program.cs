@@ -127,6 +127,15 @@ app.UseAuthorization();
 app.MapControllers();
 // Health endpoint (gateway'in kendi sağlığı)
 app.MapHealthChecks("/health");
+// Ocelot'un yakalamasını kesin olarak engellemek için kısa devre sağlık doğrulaması
+app.Map("/health", branch =>
+{
+    branch.Run(async context =>
+    {
+        context.Response.ContentType = "text/plain";
+        await context.Response.WriteAsync("OK");
+    });
+});
 
 // 5. OCELOT'u en sona yakın çalıştırın (MapControllers'a gitmeyen tüm yönlendirmeler Ocelot'a kalır)
 await app.UseOcelot();
