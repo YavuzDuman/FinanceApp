@@ -112,6 +112,18 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+// En erken noktada health isteklerini kısa devre yap (Ocelot'a gitmeden yanıtla)
+app.Use(async (ctx, next) =>
+{
+    if (string.Equals(ctx.Request.Path.Value, "/health", StringComparison.OrdinalIgnoreCase))
+    {
+        ctx.Response.ContentType = "text/plain";
+        await ctx.Response.WriteAsync("OK");
+        return;
+    }
+    await next();
+});
+
 // ----------------------------------------------------------------------------------
 // 1. Yönlendirmeyi (Routing) başlat
 app.UseRouting();
