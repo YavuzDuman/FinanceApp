@@ -15,16 +15,20 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddCentralizedLogging();
 
-builder.Services.AddMassTransit(x =>
+// RabbitMQ opsiyonel: URI verilmemişse MassTransit'i ekleme
+var rabbitUri = builder.Configuration.GetValue<string>("RabbitMQ:Uri");
+if (!string.IsNullOrWhiteSpace(rabbitUri))
 {
-    x.SetKebabCaseEndpointNameFormatter();
-    x.UsingRabbitMq((context, cfg) =>
+    builder.Services.AddMassTransit(x =>
     {
-        var uri = builder.Configuration.GetValue<string>("RabbitMQ:Uri");
-        cfg.Host(new Uri(uri));
-        cfg.ConfigureEndpoints(context);
+        x.SetKebabCaseEndpointNameFormatter();
+        x.UsingRabbitMq((context, cfg) =>
+        {
+            cfg.Host(new Uri(rabbitUri));
+            cfg.ConfigureEndpoints(context);
+        });
     });
-});
+}
 
 // CORS Konfigürasyonu - Frontend ile iletişim için
 builder.Services.AddCors(options =>
