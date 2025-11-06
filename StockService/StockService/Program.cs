@@ -84,8 +84,40 @@ builder.Services.AddHttpClient();
 // Bu, uygulaman�n ya�am d�ng�s� boyunca tek bir Redis ba�lant�s�n�n kullan�lmas�n� sa�lar.
 builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 {
-	var config = builder.Configuration.GetValue<string>("Redis:Configuration");
-	return ConnectionMultiplexer.Connect(config);
+    var config = builder.Configuration.GetValue<string>("Redis:Configuration");
+    if (string.IsNullOrWhiteSpace(config))
+        throw new ArgumentException("Redis configuration is missing", nameof(config));
+
+    try
+    {
+        // Upstash rediss:// URL'si verilmişse güvenli şekilde parse et ve TLS + retry ayarlarıyla bağlan
+        if (config.StartsWith("rediss://", StringComparison.OrdinalIgnoreCase))
+        {
+            var uri = new Uri(config);
+            var password = uri.UserInfo?.StartsWith(":") == true ? uri.UserInfo.Substring(1) : uri.UserInfo;
+
+            var options = new ConfigurationOptions
+            {
+                AbortOnConnectFail = false,
+                Ssl = true,
+                ConnectRetry = 3,
+                ConnectTimeout = 5000
+            };
+            options.EndPoints.Add(uri.Host, uri.Port == -1 ? 6379 : uri.Port);
+            if (!string.IsNullOrEmpty(password)) options.Password = password;
+
+            return ConnectionMultiplexer.Connect(options);
+        }
+
+        // Anahtar=değer formatı için doğrudan bağlan (abortConnect=false eklemen önerilir)
+        return ConnectionMultiplexer.Connect(config);
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Redis connect failed: {ex.Message}");
+        // Bağlantı kurulamasa bile uygulamanın ayağa kalkması için abortConnect=false ile tekrar denemeye devam et
+        return ConnectionMultiplexer.Connect(config + (config.Contains("abortConnect", StringComparison.OrdinalIgnoreCase) ? string.Empty : ",abortConnect=false"));
+    }
 });
 
 // RedisCacheService'i de singleton olarak ekle
