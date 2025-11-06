@@ -295,7 +295,7 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
         {
             Console.WriteLine($"İç hata: {ex.InnerException.Message}");
         }
-        Console.WriteLine($"Redis Config (ilk 50 karakter): {redisConfig?.Substring(0, Math.Min(50, redisConfig.Length ?? 0))}...");
+        Console.WriteLine($"Redis Config (ilk 50 karakter): {redisConfig?.Substring(0, Math.Min(50, redisConfig?.Length ?? 0))}...");
         Console.WriteLine($"═══════════════════════════════════════════════════════");
         throw; // Redis zorunlu olduğu için hatayı fırlat
     }
