@@ -83,16 +83,32 @@ builder.Services.AddHttpClient();
 // Redis ba�lant�s�n� singleton olarak ekle
 // Bu, uygulaman�n ya�am d�ng�s� boyunca tek bir Redis ba�lant�s�n�n kullan�lmas�n� sa�lar.
 // Redis bağlantısı ZORUNLU - Veriler Redis'e yazılacak
-var redisConfig = builder.Configuration.GetValue<string>("Redis:Configuration");
+// Environment variable formatı: Redis__Configuration (çift alt çizgi)
+var redisConfig = builder.Configuration.GetValue<string>("Redis:Configuration") 
+                  ?? builder.Configuration.GetValue<string>("Redis__Configuration");
+
+// Debug: Configuration değerini logla (şifreyi gizle)
+if (!string.IsNullOrWhiteSpace(redisConfig))
+{
+    var maskedConfig = redisConfig.Length > 30 
+        ? redisConfig.Substring(0, 30) + "..." 
+        : redisConfig;
+    Console.WriteLine($"Redis config bulundu (ilk 30 karakter): {maskedConfig}");
+}
+else
+{
+    Console.WriteLine("UYARI: Redis:Configuration ve Redis__Configuration ikisi de boş!");
+}
 
 if (string.IsNullOrWhiteSpace(redisConfig))
 {
     Console.WriteLine("═══════════════════════════════════════════════════════");
     Console.WriteLine("HATA: Redis yapılandırması bulunamadı!");
-    Console.WriteLine("Redis bağlantısı için 'Redis:Configuration' ayarını yapılandırın.");
+    Console.WriteLine("Redis bağlantısı için 'Redis:Configuration' veya 'Redis__Configuration' ayarını yapılandırın.");
+    Console.WriteLine("Render.com'da environment variable: Redis__Configuration");
     Console.WriteLine("Örnek format: rediss://default:password@host:port");
     Console.WriteLine("═══════════════════════════════════════════════════════");
-    throw new InvalidOperationException("Redis configuration is required. Please set 'Redis:Configuration' in appsettings.json or environment variables.");
+    throw new InvalidOperationException("Redis configuration is required. Please set 'Redis__Configuration' environment variable in Render.com");
 }
 
 builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
@@ -244,6 +260,12 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
         else
         {
             // Anahtar=değer formatı veya connection string formatı için
+            // Ama önce boş olmadığından emin ol
+            if (string.IsNullOrWhiteSpace(redisConfig))
+            {
+                throw new ArgumentException("Redis configuration string is empty. Please provide a valid Redis connection string.");
+            }
+            
             Console.WriteLine("Redis connection string formatı kullanılıyor (rediss:// değil)");
             
             // abortConnect=false ekle (yoksa)
