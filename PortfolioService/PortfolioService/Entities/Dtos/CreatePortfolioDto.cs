@@ -2,7 +2,7 @@
 
 namespace PortfolioService.Entities.Dtos
 {
-	public class CreatePortfolioDto : IDto
+	public record CreatePortfolioDto : IDto
 	{
 		public string Name { get; set; }
 	}

@@ -85,5 +85,107 @@ namespace StockService.Business.Concrete
 
 			return stocks;
 		}
+
+	public async Task<List<StockHistoricalData>> FetchHistoricalDataAsync(string symbol, string period, string interval)
+	{
+		var historicalData = new List<StockHistoricalData>();
+		var pythonScriptPath = "fetch_bist_data.py";
+
+		Console.WriteLine($"[TARIHSEL VERI] Symbol: {symbol}, Period: {period}, Interval: {interval}");
+		Console.WriteLine($"[TARIHSEL VERI] Script path: {Path.GetFullPath(pythonScriptPath)}");
+
+		if (!File.Exists(pythonScriptPath))
+		{
+			Console.Error.WriteLine($"[HATA] Python script bulunamadı: {pythonScriptPath}");
+			return historicalData;
+		}
+
+			var startInfo = new ProcessStartInfo
+			{
+				FileName = "python",
+				Arguments = $"{pythonScriptPath} historical {symbol} {period} {interval}",
+				UseShellExecute = false,
+				RedirectStandardOutput = true,
+				RedirectStandardError = true,
+				CreateNoWindow = true,
+				StandardOutputEncoding = Encoding.UTF8
+			};
+
+			using (var process = new Process { StartInfo = startInfo })
+			{
+				try
+				{
+					process.Start();
+
+					var outputTask = process.StandardOutput.ReadToEndAsync();
+					var errorTask = process.StandardError.ReadToEndAsync();
+					var timeoutTask = Task.Delay(TimeSpan.FromSeconds(30));
+
+					var completedTask = await Task.WhenAny(outputTask, errorTask, timeoutTask);
+
+					if (completedTask == timeoutTask)
+					{
+						process.Kill(true);
+						Console.Error.WriteLine("Tarihsel veri timeout.");
+						return historicalData;
+					}
+
+				await Task.WhenAll(outputTask, errorTask);
+
+				var jsonOutput = outputTask.Result;
+				var errorOutput = errorTask.Result;
+
+				Console.WriteLine($"[PYTHON] Exit Code: {process.ExitCode}");
+				Console.WriteLine($"[PYTHON] Output Length: {jsonOutput?.Length ?? 0}");
+				if (!string.IsNullOrEmpty(errorOutput))
+				{
+					Console.WriteLine($"[PYTHON] Error Output: {errorOutput}");
+				}
+
+				if (process.ExitCode == 0)
+				{
+					if (!string.IsNullOrEmpty(jsonOutput))
+					{
+						Console.WriteLine($"[PYTHON] First 200 chars: {jsonOutput.Substring(0, Math.Min(200, jsonOutput.Length))}");
+						
+						var options = new JsonSerializerOptions
+						{
+							PropertyNameCaseInsensitive = true
+						};
+						historicalData = JsonSerializer.Deserialize<List<StockHistoricalData>>(jsonOutput, options);
+						Console.WriteLine($"[DESERIALIZE] Success! Item count: {historicalData?.Count ?? 0}");
+						
+						if (historicalData != null && historicalData.Any())
+						{
+							var first = historicalData.First();
+							Console.WriteLine($"[DESERIALIZE] First item - Date: {first.Date}, Close: {first.Close}");
+						}
+					}
+					else
+					{
+						Console.WriteLine("[PYTHON] JSON output boş!");
+					}
+				}
+				else
+				{
+					Console.Error.WriteLine($"[HATA] Python exit code: {process.ExitCode}");
+					Console.Error.WriteLine($"[HATA] Error: {errorOutput}");
+				}
+				}
+				catch (Exception ex)
+				{
+					Console.Error.WriteLine($"İşlem hatası: {ex.Message}");
+				}
+				finally
+				{
+					if (!process.HasExited)
+					{
+						process.Kill(true);
+					}
+				}
+			}
+
+			return historicalData;
+		}
 	}
 }

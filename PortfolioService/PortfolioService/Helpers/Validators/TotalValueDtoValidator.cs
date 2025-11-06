@@ -7,7 +7,7 @@ namespace PortfolioService.Helpers.Validators
 	{
 		public TotalValueDtoValidator()
 		{
-			RuleFor(x => x.Symbol).NotEmpty().WithMessage("Sembol alanı boş bırakılamaz.");
+			//RuleFor(x => x.Symbol).NotEmpty().WithMessage("Sembol alanı boş bırakılamaz.");
 		}
 	}
 }

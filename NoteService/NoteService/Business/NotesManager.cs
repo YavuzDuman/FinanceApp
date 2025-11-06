@@ -65,4 +65,10 @@ public class NotesManager : INotesManager
 		return await _notesRepository.GetUserNotesAsync(userId);
 	}
 
+	public async Task<IEnumerable<Note>> GetUserNotesByStockAsync(string stockSymbol, int userId)
+	{
+		var allNotes = await _notesRepository.GetUserNotesAsync(userId);
+		return allNotes.Where(n => n.StockSymbol.Equals(stockSymbol, StringComparison.OrdinalIgnoreCase));
+	}
+
 }

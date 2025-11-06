@@ -2,10 +2,9 @@
 
 namespace PortfolioService.Entities.Dtos
 {
-	public class TotalValueDto : IDto
+	public record TotalValueDto : IDto
 	{
-		public string Symbol { get; set; }
 		public decimal TotalValue { get; set; }
-
+		public decimal TotalCost { get; set; }
 	}
 }

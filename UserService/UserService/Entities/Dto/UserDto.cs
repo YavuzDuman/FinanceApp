@@ -2,12 +2,14 @@
 
 namespace UserService.Entities.Dto
 {
-	public class UserDto : IDto
-	{
-		public int UserId { get; set; }
-		public string Username { get; set; }
-		public string Email { get; set; }
-		public string RoleName { get; set; }
-		public DateTime InsertDate { get; set; }
-	}
+	// ⚡ Immutable record - Performance iyileştirmesi
+	public record UserDto(
+		int UserId,
+		string Name,
+		string Username,
+		string Email,
+		string RoleName,
+		DateTime RegistrationDate,
+		bool IsActive
+	) : IDto;
 }

@@ -18,12 +18,16 @@ namespace StockService.DataAccess.Concrete
 
 		public async Task<T> GetAsync(Expression<Func<T, bool>> filter)
 		{
-			return await _dbSet.FirstOrDefaultAsync(filter);
+			return await _dbSet
+				.AsNoTracking() // ⚡ Change tracking'i kapat - read-only sorgu
+				.FirstOrDefaultAsync(filter);
 		}
 
 		public async Task<List<T>> GetAllAsync()
 		{
-			return await _dbSet.ToListAsync();
+			return await _dbSet
+				.AsNoTracking() // ⚡ Change tracking'i kapat - read-only sorgu
+				.ToListAsync();
 		}
 
 		public async Task AddAsync(T entity)

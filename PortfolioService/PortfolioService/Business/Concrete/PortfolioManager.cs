@@ -86,29 +86,29 @@ namespace PortfolioService.Business.Concrete
 			await _portfolioRepository.DeletePortfolioAsync(portfolioId);
 		}
 
-		// --- Portföy Varlık (Item) İşlemleri ---
-		public async Task<PortfolioItem> AddItemToPortfolioAsync(int portfolioId, string symbol, decimal purchasePrice, int quantity, HttpContext? httpContext = null)
+	// --- Portföy Varlık (Item) İşlemleri ---
+	public async Task<PortfolioItem> AddItemToPortfolioAsync(int portfolioId, string symbol, decimal purchasePrice, int quantity, HttpContext? httpContext = null)
+	{
+		// GetStockFromStockServiceAsync artık Redis'i kontrol ediyor.
+		var stock = await GetStockFromStockServiceAsync(symbol, httpContext);
+		if (stock == null)
 		{
-			// GetStockFromStockServiceAsync artık Redis'i kontrol ediyor.
-			var stock = await GetStockFromStockServiceAsync(symbol, httpContext);
-			if (stock == null)
-			{
-				throw new InvalidOperationException($"Stock with symbol '{symbol}' not found in the Stock Service.");
-			}
-
-			var item = new PortfolioItem
-			{
-				PortfolioId = portfolioId,
-				Symbol = symbol,
-				PurchaseDate = DateTime.UtcNow,
-				AverageCost = purchasePrice,
-				Quantity = quantity,
-				CurrentPrice = stock.CurrentPrice
-			};
-
-			await _portfolioRepository.AddPortfolioItemAsync(item);
-			return item;
+			throw new InvalidOperationException($"'{symbol}' sembolü sistemde bulunamadı. Lütfen geçerli bir hisse senedi sembolü girin.");
 		}
+
+		var item = new PortfolioItem
+		{
+			PortfolioId = portfolioId,
+			Symbol = symbol,
+			PurchaseDate = DateTime.UtcNow,
+			AverageCost = purchasePrice,
+			Quantity = quantity,
+			CurrentPrice = stock.CurrentPrice
+		};
+
+		await _portfolioRepository.AddPortfolioItemAsync(item);
+		return item;
+	}
 
 		public async Task<PortfolioItem> UpdatePortfolioItemAsync(int portfolioItemId, int newQuantity, decimal newPurchasePrice)
 		{
@@ -128,51 +128,61 @@ namespace PortfolioService.Business.Concrete
 			await _portfolioRepository.DeletePortfolioItemAsync(portfolioItemId);
 		}
 
-		// --- İş Mantığı ve Servisler Arası İletişim ---
-		public async Task<TotalValueDto> GetTotalPortfolioValueAsync(int portfolioId, HttpContext? httpContext = null)
+	// --- İş Mantığı ve Servisler Arası İletişim ---
+	public async Task<TotalValueDto> GetTotalPortfolioValueAsync(int portfolioId, HttpContext? httpContext = null)
+	{
+		var portfolio = await _portfolioRepository.GetPortfolioByIdAsync(portfolioId);
+		if (portfolio == null || portfolio.PortfolioItems == null)
 		{
-			var portfolio = await _portfolioRepository.GetPortfolioByIdAsync(portfolioId);
-			if (portfolio == null || portfolio.PortfolioItems == null)
-			{
-				return null;
-			}
-
-			TotalValueDto totalValue = new();
-			foreach (var item in portfolio.PortfolioItems)
-			{
-				// Redis'i kullanan metodumuz çağrılıyor
-				var stock = await GetStockFromStockServiceAsync(item.Symbol, httpContext);
-				if (stock != null)
-				{
-					totalValue.TotalValue += stock.CurrentPrice * item.Quantity;
-					totalValue.Symbol = item.Symbol;
-				}
-			}
-			return totalValue;
+			return null;
 		}
 
-		public async Task<ProfitLossDto> GetTotalProfitLossAsync(int portfolioId, HttpContext? httpContext = null)
+		TotalValueDto totalValue = new();
+		foreach (var item in portfolio.PortfolioItems)
 		{
-			var portfolio = await _portfolioRepository.GetPortfolioByIdAsync(portfolioId);
-			if (portfolio == null || portfolio.PortfolioItems == null)
+			// Redis'i kullanan metodumuz çağrılıyor
+			var stock = await GetStockFromStockServiceAsync(item.Symbol, httpContext);
+			if (stock != null)
 			{
-				return null;
+				totalValue.TotalValue += stock.CurrentPrice * item.Quantity;
 			}
-			ProfitLossDto profitLossDto = new();
-			foreach (var item in portfolio.PortfolioItems)
-			{
-				// Redis'i kullanan metodumuz çağrılıyor
-				var stock = await GetStockFromStockServiceAsync(item.Symbol, httpContext);
-				if (stock != null)
-				{
-					var currentValue = stock.CurrentPrice * item.Quantity;
-					var investedValue = item.AverageCost * item.Quantity;
-					profitLossDto.ProfitLossValue += (currentValue - investedValue);
-					profitLossDto.Symbol = item.Symbol;
-				}
-			}
-			return profitLossDto;
+			// Maliyet hesapla (current price olmasa bile)
+			totalValue.TotalCost += item.AverageCost * item.Quantity;
 		}
+		return totalValue;
+	}
+
+	public async Task<ProfitLossDto> GetTotalProfitLossAsync(int portfolioId, HttpContext? httpContext = null)
+	{
+		var portfolio = await _portfolioRepository.GetPortfolioByIdAsync(portfolioId);
+		if (portfolio == null || portfolio.PortfolioItems == null)
+		{
+			return null;
+		}
+		
+		decimal totalCurrentValue = 0;
+		decimal totalInvestedValue = 0;
+		
+		foreach (var item in portfolio.PortfolioItems)
+		{
+			// Redis'i kullanan metodumuz çağrılıyor
+			var stock = await GetStockFromStockServiceAsync(item.Symbol, httpContext);
+			if (stock != null)
+			{
+				totalCurrentValue += stock.CurrentPrice * item.Quantity;
+			}
+			totalInvestedValue += item.AverageCost * item.Quantity;
+		}
+		
+		var profitLoss = totalCurrentValue - totalInvestedValue;
+		var profitLossPercentage = totalInvestedValue > 0 ? (profitLoss / totalInvestedValue) * 100 : 0;
+		
+		return new ProfitLossDto
+		{
+			TotalProfitLoss = profitLoss,
+			TotalProfitLossPercentage = profitLossPercentage
+		};
+	}
 
 		// --- Redis Cache-Aside ve HTTP İstek Metodu ---
 		private async Task<StockDto> GetStockFromStockServiceAsync(string symbol, HttpContext? httpContext = null)

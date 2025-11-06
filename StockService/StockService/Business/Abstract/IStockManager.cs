@@ -7,5 +7,6 @@ namespace StockService.Business.Abstract
 		Task<List<Stock>> GetAllStocksAsync();
 		Task UpdateStocksFromExternalApiAsync();
 		Task<Stock?> GetStockBySymbolAsync(string symbol);
+		Task<List<StockHistoricalData>> GetHistoricalDataAsync(string symbol, string period, string interval);
 	}
 }

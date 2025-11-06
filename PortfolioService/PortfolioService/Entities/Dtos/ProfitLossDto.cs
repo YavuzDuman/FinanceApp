@@ -2,9 +2,9 @@
 
 namespace PortfolioService.Entities.Dtos
 {
-	public class ProfitLossDto : IDto
+	public record ProfitLossDto : IDto
 	{
-		public string Symbol { get; set; }
-		public decimal ProfitLossValue { get; set; }
+		public decimal TotalProfitLoss { get; set; }
+		public decimal TotalProfitLossPercentage { get; set; }
 	}
 }

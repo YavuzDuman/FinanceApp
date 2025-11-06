@@ -1,4 +1,4 @@
-﻿using Microsoft.Data.SqlClient;
+﻿using Npgsql;
 using System.Data;
 
 namespace NoteService.DataAccess.ConnectionFactory
@@ -14,7 +14,7 @@ namespace NoteService.DataAccess.ConnectionFactory
 
 		public IDbConnection GetConnection()
 		{
-			return new SqlConnection(_connectionString);
+			return new NpgsqlConnection(_connectionString);
 		}
 	}
 }

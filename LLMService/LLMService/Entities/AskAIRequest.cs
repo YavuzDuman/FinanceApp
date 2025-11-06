@@ -1,4 +1,4 @@
-﻿namespace LLMService.Entities
+namespace LLMService.Entities
 {
 	public class AskAIRequest
 	{

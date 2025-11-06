@@ -29,20 +29,23 @@ namespace UserService.DataAccess.Concrete
 
 		public Task<List<T>> GetAllAsync(CancellationToken ct = default)
 		{
-			return _context.Set<T>().ToListAsync(ct);
+			return _context.Set<T>()
+				.AsNoTracking() // ⚡ Change tracking'i kapat - read-only sorgu
+				.ToListAsync(ct);
 		}
 
 		public async Task<T?> GetByIdAsync(int id, CancellationToken ct = default)
 		{
+			// FindAsync için AsNoTracking kullanılamaz, direkt Find kullan
 			return await _context.Set<T>().FindAsync([id], ct);
 		}
 
-		public Task UpdateAsync(int id, T TEntity, CancellationToken ct = default)
+		public async Task UpdateAsync(int id, T TEntity, CancellationToken ct = default)
 		{
-			var existingEntity = _context.Set<T>().Find(TEntity);
+			var existingEntity = await _context.Set<T>().FindAsync(new object[] { id }, ct);
 			if (existingEntity is null) throw new Exception("Entity not found");
 			_context.Entry(existingEntity).CurrentValues.SetValues(TEntity);
-			return _context.SaveChangesAsync(ct);
+			await _context.SaveChangesAsync(ct);
 		}
 	}
 }

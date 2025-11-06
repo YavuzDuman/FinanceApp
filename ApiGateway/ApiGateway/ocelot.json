@@ -1,5 +1,8 @@
 {
   "Routes": [
+    // ----------------------------------------------------------------------
+    // AUTH SERVICE - Login ve Register (YETKİLENDİRME GEREKTİRMEZ!)
+    // ----------------------------------------------------------------------
     {
       "DownstreamPathTemplate": "/api/auth/{everything}",
       "DownstreamScheme": "https",
@@ -10,9 +13,13 @@
         }
       ],
       "UpstreamPathTemplate": "/api/auth/{everything}",
-      "UpstreamHttpMethod": [ "Post", "Get", "Put", "Delete" ],
+      "UpstreamHttpMethod": [ "Post" ],
       "Priority": 1
     },
+
+    // ----------------------------------------------------------------------
+    // YETKİLENDİRME GEREKTİREN KULLANICI İŞLEMLERİ (UserService'e gider)
+    // ----------------------------------------------------------------------
     {
       "DownstreamPathTemplate": "/api/users/{everything}",
       "DownstreamScheme": "https",
@@ -37,6 +44,38 @@
         }
       ]
     },
+
+    // ----------------------------------------------------------------------
+    // ADMIN SERVICE - Admin Panel İşlemleri (UserService'e gider)
+    // ----------------------------------------------------------------------
+    {
+      "DownstreamPathTemplate": "/api/admin/{everything}",
+      "DownstreamScheme": "https",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "localhost",
+          "Port": 7079
+        }
+      ],
+      "UpstreamPathTemplate": "/api/admin/{everything}",
+      "UpstreamHttpMethod": [ "Get", "Post", "Put", "Delete" ],
+      "Priority": 1,
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "OcelotAuthScheme",
+        "AllowedScopes": []
+      },
+      "AddClaimsToRequest": [
+        {
+          "Type": "sub",
+          "Value": "{claim_value}",
+          "Key": "X-User-ID"
+        }
+      ]
+    },
+
+    // ----------------------------------------------------------------------
+    // STOCKS SERVICE (Hisse Senedi Verileri)
+    // ----------------------------------------------------------------------
     {
       "DownstreamPathTemplate": "/api/stocks/{everything}",
       "DownstreamScheme": "https",
@@ -54,25 +93,29 @@
       },
       "AddClaimsToRequest": [
         {
-          "Type": "sub", 
+          "Type": "sub",
           "Value": "{claim_value}",
-          "Key": "X-User-ID" 
+          "Key": "X-User-ID"
         }
       ]
     },
+
+    // ----------------------------------------------------------------------
+    // PORTFOLIO SERVICE (Portföy Yönetimi)
+    // ----------------------------------------------------------------------
     {
       "DownstreamPathTemplate": "/api/portfolios/{everything}",
-      "DownstreamScheme": "http",
+      "DownstreamScheme": "https",
       "DownstreamHostAndPorts": [
         {
           "Host": "localhost",
-          "Port": 5082
+          "Port": 7003
         }
       ],
       "UpstreamPathTemplate": "/api/portfolios/{everything}",
       "UpstreamHttpMethod": [ "Get", "Post", "Put", "Delete" ],
       "AuthenticationOptions": {
-        "AuthenticationProviderKey": "OcelotAuthScheme", 
+        "AuthenticationProviderKey": "OcelotAuthScheme",
         "AllowedScopes": []
       },
       "AddClaimsToRequest": [
@@ -83,29 +126,10 @@
         }
       ]
     },
-    {
-      "DownstreamPathTemplate": "/ai/{everything}",
-      "DownstreamScheme": "https",
-      "DownstreamHostAndPorts": [
-        {
-          "Host": "localhost",
-          "Port": 7211
-        }
-      ],
-      "UpstreamPathTemplate": "/api/ai/{everything}",
-      "UpstreamHttpMethod": [ "Post" ],
-      "AuthenticationOptions": {
-        "AuthenticationProviderKey": "OcelotAuthScheme", 
-        "AllowedScopes": []
-      },
-      "AddClaimsToRequest": [
-        {
-          "Type": "sub",
-          "Value": "{claim_value}",
-          "Key": "X-User-ID"
-        }
-      ]
-    },
+
+    // ----------------------------------------------------------------------
+    // NOTES SERVICE (Hisse Bazlı Notlar)
+    // ----------------------------------------------------------------------
     {
       "DownstreamPathTemplate": "/api/notes/{everything}",
       "DownstreamScheme": "https",
@@ -129,6 +153,10 @@
         }
       ]
     },
+
+    // ----------------------------------------------------------------------
+    // FINANCIAL STATEMENT SERVICE (Bilanço/Web Scraping)
+    // ----------------------------------------------------------------------
     {
       "DownstreamPathTemplate": "/api/financialstatement/{everything}",
       "DownstreamScheme": "https",
@@ -141,7 +169,34 @@
       "UpstreamPathTemplate": "/api/financialstatement/{everything}",
       "UpstreamHttpMethod": [ "Get", "Post" ],
       "AuthenticationOptions": {
-        "AuthenticationProviderKey": "OcelotAuthScheme", 
+        "AuthenticationProviderKey": "OcelotAuthScheme",
+        "AllowedScopes": []
+      },
+      "AddClaimsToRequest": [
+        {
+          "Type": "sub",
+          "Value": "{claim_value}",
+          "Key": "X-User-ID"
+        }
+      ]
+    },
+
+    // ----------------------------------------------------------------------
+    // WATCHLIST SERVICE (İzleme Listesi)
+    // ----------------------------------------------------------------------
+    {
+      "DownstreamPathTemplate": "/api/watchlist/{everything}",
+      "DownstreamScheme": "https",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "localhost",
+          "Port": 7101
+        }
+      ],
+      "UpstreamPathTemplate": "/api/watchlist/{everything}",
+      "UpstreamHttpMethod": [ "Get", "Post", "Put", "Delete" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "OcelotAuthScheme",
         "AllowedScopes": []
       },
       "AddClaimsToRequest": [
@@ -152,6 +207,7 @@
         }
       ]
     }
+
   ],
   "GlobalConfiguration": {
     "BaseUrl": "https://localhost:5000"

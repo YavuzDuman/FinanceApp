@@ -4,8 +4,45 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.IdentityModel.Tokens.Jwt;
+using Microsoft.Extensions.Http;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// IHttpClientFactory servisini ekle
+builder.Services.AddHttpClient();
+
+// Ocelot için SSL sertifika doğrulamasını bypass et (Development)
+if (builder.Environment.IsDevelopment())
+{
+	builder.Services.ConfigureAll<HttpClientFactoryOptions>(options =>
+	{
+		options.HttpMessageHandlerBuilderActions.Add(handlerBuilder =>
+		{
+			handlerBuilder.PrimaryHandler = new HttpClientHandler
+			{
+				ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true
+			};
+		});
+	});
+}
+
+builder.Services.AddCors(options =>
+{
+	options.AddPolicy("CorsPolicy",
+		builder => builder
+			// *** YILDIZ (*) YERİNE SPESİFİK KAYNAKLARI LİSTELİYORUZ ***
+			.WithOrigins(
+				// React Frontend adresi
+				"http://localhost:5173",
+				"https://localhost:5173",
+				// API Gateway ve diğer local adresler
+				"https://localhost:5000",
+				"http://localhost:5000"
+			)
+			.AllowAnyMethod()
+			.AllowAnyHeader()
+			.AllowCredentials()); // SignalR için bu artık geçerlidir
+});
 
 // Ocelot yaplandrma dosyasn (ocelot.json) ekleyin
 builder.Configuration.AddJsonFile("ocelot.json", optional: false, reloadOnChange: true);
@@ -15,7 +52,6 @@ JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
 // ----------------------------------------------------------------------------------
 // BÜYÜK DEĞİŞİKLİK: JWT Authentication konfigürasyonu
-// Default scheme yerine Ocelot'ın kullanacağı adlandırılmış bir şema ("OcelotAuthScheme") eklenir
 // ----------------------------------------------------------------------------------
 
 // builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme) yerine:
@@ -66,12 +102,20 @@ app.UseHttpsRedirection();
 // ----------------------------------------------------------------------------------
 // MİDDLEWARE SIRALAMASI ÖNEMLİ!
 // ----------------------------------------------------------------------------------
+// 1. Yönlendirmeyi (Routing) başlat
+app.UseRouting();
+
+// 2. CORS'u uygulayın (Authentication/Authorization'dan önce)
+app.UseCors("CorsPolicy");
+
+// 3. Kimlik Doğrulama ve Yetkilendirmeyi uygulayın
 app.UseAuthentication();
-app.UseAuthorization(); // Bu ikisi UseOcelot'tan önce gelmelidir.
+app.UseAuthorization();
 
-// Ocelot middleware'ini en son ekle
-await app.UseOcelot();
-
+// 4. Endpointleri ve Controller'ları haritalayın
 app.MapControllers();
+
+// 5. OCELOT'u çalıştırın - Tüm route yönlendirmelerini Ocelot yönetir
+await app.UseOcelot();
 
 app.Run();

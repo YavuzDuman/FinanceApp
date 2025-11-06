@@ -14,49 +14,64 @@ namespace FinancialStatementService.DataAccess.Concrete
 			_connectionFactory = connectionFactory;
 		}
 
-		public async Task<List<FinancialStatement>> GetAllSymbolsAsync()
+	public async Task<List<FinancialStatement>> GetAllSymbolsAsync()
+	{
+		try
 		{
-			var sql = "SELECT * FROM FinancialStatements";
+			var sql = @"SELECT * FROM ""FinancialStatements""";
 			using var connection = _connectionFactory.GetConnection();
 			var symbols = await connection.QueryAsync<FinancialStatement>(sql);
-			return symbols.ToList();
+			var result = symbols.ToList();
+			Console.WriteLine($"GetAllSymbolsAsync: {result.Count} bilanço bulundu.");
+			return result;
 		}
-
-		public async Task<FinancialStatement?> GetSymbolByNameAsync(string symbol)
+		catch (Exception ex)
 		{
-			var sql = "SELECT * FROM FinancialStatements WHERE StockSymbol = @Symbol";
-			using var connection = _connectionFactory.GetConnection();
-			return await connection.QueryFirstOrDefaultAsync<FinancialStatement>(sql, new { Symbol = symbol });
+			Console.WriteLine($"GetAllSymbolsAsync hatası: {ex.Message}");
+			Console.WriteLine($"Stack trace: {ex.StackTrace}");
+			if (ex.InnerException != null)
+			{
+				Console.WriteLine($"Inner exception: {ex.InnerException.Message}");
+			}
+			throw;
 		}
+	}
 
-		public async Task InsertAsync(FinancialStatement statement)
-		{
-			var sql = @"INSERT INTO FinancialStatements 
-				(StockSymbol, CompanyName, StatementDate, Type, Data, AnnouncementDate, NetProfitChangeRate, UpdatedDate) 
-				VALUES (@StockSymbol, @CompanyName, @StatementDate, @Type, @Data, @AnnouncementDate, @NetProfitChangeRate, @UpdatedDate)";
-			using var connection = _connectionFactory.GetConnection();
-			await connection.ExecuteAsync(sql, statement);
-		}
+	public async Task<FinancialStatement?> GetSymbolByNameAsync(string symbol)
+	{
+		var sql = @"SELECT * FROM ""FinancialStatements"" WHERE ""StockSymbol"" = @Symbol";
+		using var connection = _connectionFactory.GetConnection();
+		return await connection.QueryFirstOrDefaultAsync<FinancialStatement>(sql, new { Symbol = symbol });
+	}
 
-		public async Task UpdateAsync(FinancialStatement statement)
-		{
-			var sql = @"UPDATE FinancialStatements SET 
-				CompanyName = @CompanyName,
-				Data = @Data, 
-				AnnouncementDate = @AnnouncementDate, 
-				NetProfitChangeRate = @NetProfitChangeRate, 
-				UpdatedDate = @UpdatedDate 
-				WHERE Id = @Id";
-			using var connection = _connectionFactory.GetConnection();
-			await connection.ExecuteAsync(sql, statement);
-		}
+	public async Task InsertAsync(FinancialStatement statement)
+	{
+		var sql = @"INSERT INTO ""FinancialStatements"" 
+			(""StockSymbol"", ""CompanyName"", ""StatementDate"", ""Type"", ""Data"", ""AnnouncementDate"", ""NetProfitChangeRate"", ""UpdatedDate"") 
+			VALUES (@StockSymbol, @CompanyName, @StatementDate, @Type, @Data, @AnnouncementDate, @NetProfitChangeRate, @UpdatedDate)";
+		using var connection = _connectionFactory.GetConnection();
+		await connection.ExecuteAsync(sql, statement);
+	}
 
-		public async Task DeleteAllAsync()
-		{
-			var sql = "DELETE FROM FinancialStatements; DBCC CHECKIDENT('FinancialStatements', RESEED, 0)";
-			using var connection = _connectionFactory.GetConnection();
-			await connection.ExecuteAsync(sql);
-		}
+	public async Task UpdateAsync(FinancialStatement statement)
+	{
+		var sql = @"UPDATE ""FinancialStatements"" SET 
+			""CompanyName"" = @CompanyName,
+			""Data"" = @Data, 
+			""AnnouncementDate"" = @AnnouncementDate, 
+			""NetProfitChangeRate"" = @NetProfitChangeRate, 
+			""UpdatedDate"" = @UpdatedDate 
+			WHERE ""Id"" = @Id";
+		using var connection = _connectionFactory.GetConnection();
+		await connection.ExecuteAsync(sql, statement);
+	}
+
+	public async Task DeleteAllAsync()
+	{
+		var sql = @"DELETE FROM ""FinancialStatements""; ALTER SEQUENCE ""FinancialStatements_Id_seq"" RESTART WITH 1;";
+		using var connection = _connectionFactory.GetConnection();
+		await connection.ExecuteAsync(sql);
+	}
 
 		
 	}

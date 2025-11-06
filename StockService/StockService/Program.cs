@@ -26,8 +26,31 @@ builder.Services.AddMassTransit(x =>
     });
 });
 
+// CORS Konfigürasyonu - Frontend ile iletişim için
+builder.Services.AddCors(options =>
+{
+	options.AddPolicy("CorsPolicy",
+		builder => builder
+			.WithOrigins(
+				"http://localhost:5173",
+				"https://localhost:5173",
+				"https://localhost:5000",
+				"http://localhost:5000"
+			)
+			.AllowAnyMethod()
+			.AllowAnyHeader()
+			.AllowCredentials());
+});
+
 // Add services to the container.
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+	.AddJsonOptions(options =>
+	{
+		options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+		options.JsonSerializerOptions.WriteIndented = false;
+		// DateTime'ları ISO 8601 formatında serialize et (default olarak zaten yapıyor)
+		options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+	});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -37,9 +60,18 @@ builder.Services.AddCentralizedJwt(builder.Configuration);
 // Merkezi Authorization Policy'leri ekle
 builder.Services.AddCentralizedAuthorization();
 
+// Health Checks
+builder.Services.AddHealthChecks();
+
+// Response Compression (gzip/brotli)
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+});
+
 // DbContext
-builder.Services.AddDbContext<StockDbContext>(options =>
-	options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddDbContextPool<StockDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // DI Container'a servisleri ekle
 builder.Services.AddHttpClient();
@@ -82,6 +114,7 @@ app.UseCentralizedMiddleware();
 
 // Routing'i ve Authorization'� etkinle�tir
 app.UseRouting();
+app.UseCors("CorsPolicy"); // CORS'u routing'den sonra, authentication'dan önce ekle
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -90,6 +123,7 @@ app.UseEndpoints(endpoints =>
 {
 	endpoints.MapControllers();
 	endpoints.MapHub<StockService.Hubs.StockHub>("/stockHub");
+    endpoints.MapHealthChecks("/health");
 });
 
 // Veritaban� migrate i�lemi

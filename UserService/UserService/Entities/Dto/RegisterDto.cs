@@ -2,7 +2,7 @@
 
 namespace UserService.Entities.Dto
 {
-	public class RegisterDto : IDto
+	public record RegisterDto : IDto
 	{
 		public string Name { get; set; }
 		public string Username { get; set; }

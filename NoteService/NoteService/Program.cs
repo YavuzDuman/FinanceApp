@@ -22,6 +22,22 @@ builder.Services.AddCentralizedJwt(builder.Configuration);
 // Merkezi Authorization Policy'leri ekle
 builder.Services.AddCentralizedAuthorization();
 
+// CORS Konfigürasyonu - Frontend ile iletişim için
+builder.Services.AddCors(options =>
+{
+	options.AddPolicy("CorsPolicy",
+		builder => builder
+			.WithOrigins(
+				"http://localhost:5173",
+				"https://localhost:5173",
+				"https://localhost:5000",
+				"http://localhost:5000"
+			)
+			.AllowAnyMethod()
+			.AllowAnyHeader()
+			.AllowCredentials());
+});
+
 // Add services to the container.
 
 // JWT Token Cache için Memory Cache ekle
@@ -51,6 +67,15 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+// Health Checks
+builder.Services.AddHealthChecks();
+
+// Response Compression (gzip/brotli)
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+});
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
@@ -63,10 +88,14 @@ app.UseHttpsRedirection();
 // Merkezi middleware'leri ekle
 app.UseCentralizedMiddleware();
 
+// Routing'i ekle - Middleware sıralaması için gerekli
+app.UseRouting();
+app.UseCors("CorsPolicy"); // CORS'u routing'den sonra, authentication'dan önce ekle
 // JWT doğrulama - Güvenlik için geri eklendi
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHealthChecks("/health");
 
 app.Run();

@@ -39,6 +39,22 @@ builder.Services.AddMassTransit(x =>
     });
 });
 
+// CORS Konfigürasyonu - Frontend ile iletişim için
+builder.Services.AddCors(options =>
+{
+	options.AddPolicy("CorsPolicy",
+		builder => builder
+			.WithOrigins(
+				"http://localhost:5173",
+				"https://localhost:5173",
+				"https://localhost:5000",
+				"http://localhost:5000"
+			)
+			.AllowAnyMethod()
+			.AllowAnyHeader()
+			.AllowCredentials());
+});
+
 // Add services to the container.
 
 // JWT Token Cache için Memory Cache ekle
@@ -79,8 +95,8 @@ builder.Services.AddCentralizedJwt(builder.Configuration);
 builder.Services.AddCentralizedAuthorization();
 
 // DbContext'i servislere ekle ve veritabani baglanti dizesini al.
-builder.Services.AddDbContext<PortfolioDatabaseContext>(options =>
-	options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddDbContextPool<PortfolioDatabaseContext>(options =>
+	options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddScoped<IPortfolioRepository, PortfolioRepository>();
 builder.Services.AddScoped<IPortfolioManager, PortfolioManager>();
@@ -127,6 +143,18 @@ builder.Services.AddSingleton<IRedisCacheService, RedisCacheService>();
 
 var app = builder.Build();
 
+// Health Checks
+builder.Services.AddHealthChecks();
+
+// Response Compression (gzip/brotli)
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+});
+
+// Health Checks
+builder.Services.AddHealthChecks();
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
@@ -140,11 +168,13 @@ app.UseHttpsRedirection();
 app.UseCentralizedMiddleware();
 
 app.UseRouting();
+app.UseCors("CorsPolicy"); // CORS'u routing'den sonra, authentication'dan önce ekle
 // JWT doğrulama - Güvenlik için geri eklendi
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHealthChecks("/health");
 
 using (var scope = app.Services.CreateScope())
 {

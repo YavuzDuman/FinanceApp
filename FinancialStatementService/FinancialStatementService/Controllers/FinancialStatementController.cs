@@ -1,4 +1,5 @@
 ﻿using FinancialStatementService.Business.Abstract;
+using FinancialStatementService.Entities;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 
@@ -47,12 +48,31 @@ namespace FinancialStatementService.Controllers
 			}
 		}
 
-		[HttpGet("all")]
-		public async Task<IActionResult> GetAllSymbols()
+	[HttpGet("all")]
+	public async Task<IActionResult> GetAllSymbols()
+	{
+		try
 		{
 			var symbols = await _financialStatementManager.GetAllSymbolsAsync();
+			if (symbols == null || !symbols.Any())
+			{
+				Console.WriteLine("UYARI: GetAllSymbolsAsync null veya boş döndü.");
+				return Ok(new List<FinancialStatementDto>()); // Boş liste döndür
+			}
+			Console.WriteLine($"GetAllSymbols: {symbols.Count} bilanço bulundu.");
 			return Ok(symbols);
 		}
+		catch (Exception ex)
+		{
+			Console.WriteLine($"GetAllSymbols hatası: {ex.Message}");
+			Console.WriteLine($"Stack trace: {ex.StackTrace}");
+			if (ex.InnerException != null)
+			{
+				Console.WriteLine($"Inner exception: {ex.InnerException.Message}");
+			}
+			return StatusCode(500, new { message = "Bilanço verileri yüklenirken bir hata oluştu.", error = ex.Message });
+		}
+	}
 
 		[HttpGet("symbol/{symbol}")]
 		public async Task<IActionResult> GetSymbolByName(string symbol)

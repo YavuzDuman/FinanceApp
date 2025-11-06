@@ -85,26 +85,30 @@ namespace PortfolioService.Controllers
 			return Ok(portfolio);
 		}
 
-		[HttpPut("{id}")]
-		public async Task<IActionResult> UpdatePortfolioName(int id, [FromBody] UpdatePortfolioNameDto updateDto)
+	[HttpPut("{id}")]
+	public async Task<IActionResult> UpdatePortfolioName(int id, [FromBody] UpdatePortfolioNameDto updateDto)
+	{
+		try
 		{
-			try
+			var userId = await UserContextHelper.GetUserIdFromTokenCachedAsync(HttpContext, _cache);
+			var portfolio = await _portfolioManager.GetPortfolioByIdAsync(id);
+			if (portfolio == null || portfolio.UserId != userId)
 			{
-				var userId = await UserContextHelper.GetUserIdFromTokenCachedAsync(HttpContext, _cache);
-				var portfolio = await _portfolioManager.GetPortfolioByIdAsync(id);
-				if (portfolio == null || portfolio.UserId != userId)
-				{
-					return Forbid();
-				}
+				return Forbid();
+			}
 
-				await _portfolioManager.UpdatePortfolioNameAsync(id, updateDto.NewName);
-				return NoContent();
-			}
-			catch (InvalidOperationException ex)
-			{
-				return NotFound(ex.Message);
-			}
+			await _portfolioManager.UpdatePortfolioNameAsync(id, updateDto.NewName);
+			return NoContent();
 		}
+		catch (InvalidOperationException ex)
+		{
+			return NotFound(new { message = ex.Message });
+		}
+		catch (Exception ex)
+		{
+			return BadRequest(new { message = "Portföy ismi güncellenirken bir hata oluştu." });
+		}
+	}
 
 		[HttpDelete("{id}")]
 		public async Task<IActionResult> DeletePortfolio(int id)
@@ -142,13 +146,17 @@ namespace PortfolioService.Controllers
 					itemDto.Quantity,
 					HttpContext
 				);
-				return Ok(addedItem);
-			}
-			catch (InvalidOperationException ex)
-			{
-				return BadRequest(ex.Message);
-			}
+			return Ok(addedItem);
 		}
+		catch (InvalidOperationException ex)
+		{
+			return BadRequest(new { message = ex.Message });
+		}
+		catch (Exception ex)
+		{
+			return BadRequest(new { message = "Hisse eklenirken beklenmeyen bir hata oluştu." });
+		}
+	}
 
 		[HttpDelete("{portfolioId}/items/{itemId}")]
 		public async Task<IActionResult> DeletePortfolioItem(int portfolioId, int itemId)

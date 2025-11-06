@@ -7,7 +7,7 @@ namespace PortfolioService.Helpers.Validators
 	{
 		public ProfitLossDtoValidator()
 		{
-			RuleFor(x => x.Symbol).NotEmpty().WithMessage("Sembol alanı boş olamaz.");
+			//RuleFor(x => x.Symbol).NotEmpty().WithMessage("Sembol alanı boş olamaz.");
 		}
 	}
 }

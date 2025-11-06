@@ -30,19 +30,26 @@ namespace UserService.DataAccess.Concrete
 				return null;
 			}
 
+			// Pasif kullanıcılar giriş yapamaz
+			if (!LoggedUser.IsActive)
+			{
+				return null;
+			}
+
 			bool isPasswordValid = _passwordHasher.VerifyPassword(user.Password, LoggedUser.Password);
 
 			return isPasswordValid ? LoggedUser : null;
 		}
-		public async Task RegisterUserAsync(User user, CancellationToken ct = default)
+		public async Task<User> RegisterUserAsync(User user, CancellationToken ct = default)
 		{
 			if(ExistsByUsernameOrEmailAsync(user.Username, user.Email, ct).Result)
 				throw new Exception("Bu kullanıcı adı veya e-posta zaten kayıtlı.");
-			user.Password = _passwordHasher.HashPassword(user.Password);
-			user.InsertDate = DateTime.Now;
+		user.Password = _passwordHasher.HashPassword(user.Password);
+		user.InsertDate = DateTime.UtcNow;
 
 			await _context.Users.AddAsync(user, ct);
 			await _context.SaveChangesAsync(ct);
+			return user;
 		}
 		public async Task<bool> ExistsByUsernameOrEmailAsync(string username, string email, CancellationToken ct = default)
 		{

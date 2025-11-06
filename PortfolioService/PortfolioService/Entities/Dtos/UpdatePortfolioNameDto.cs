@@ -2,7 +2,7 @@
 
 namespace PortfolioService.Entities.Dtos
 {
-	public class UpdatePortfolioNameDto : IDto
+	public record UpdatePortfolioNameDto : IDto
 	{
 		public string NewName { get; set; }
 	}

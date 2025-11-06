@@ -10,6 +10,7 @@ namespace UserService.Entities.Concrete
 		public string Email { get; set; }
 		public string Password { get; set; }
 		public DateTime InsertDate { get; set; }
+		public bool IsActive { get; set; } = true; // Varsayılan olarak aktif
 
 		public ICollection<UserRole>? UserRoles { get; set; }
 	}

@@ -1,4 +1,4 @@
-﻿using Microsoft.Data.SqlClient;
+﻿using Npgsql;
 using System.Data;
 
 namespace FinancialStatementService.DataAccess.DbConnectionFactory
@@ -14,7 +14,7 @@ namespace FinancialStatementService.DataAccess.DbConnectionFactory
 
 		public IDbConnection GetConnection()
 		{
-			return new SqlConnection(_connectionString);
+			return new NpgsqlConnection(_connectionString);
 		}
 	}
 }

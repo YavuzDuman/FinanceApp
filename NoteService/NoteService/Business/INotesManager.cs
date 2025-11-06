@@ -6,6 +6,7 @@ namespace NoteService.Business
 	{
 		Task<int> CreateNoteAsync(NoteDto dto,int userId);
 		Task<IEnumerable<Note>> GetUserNotesAsync(int userId);
+		Task<IEnumerable<Note>> GetUserNotesByStockAsync(string stockSymbol, int userId);
 		Task<Note> GetNoteByIdAsync(int noteId,int userId);
 		Task<bool> UpdateNoteAsync(int noteId, NoteDto dto, int userId);
 		Task<bool> DeleteNoteAsync(int noteId, int userId);

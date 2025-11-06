@@ -2,7 +2,7 @@
 
 namespace PortfolioService.Entities.Dtos
 {
-	public class AddItemToPortfolioDto : IDto
+	public record AddItemToPortfolioDto : IDto
 	{
 		public string Symbol { get; set; }
 		public decimal PurchasePrice { get; set; }

@@ -14,7 +14,10 @@ namespace WebApi.Helpers.Validator
 				.NotEmpty().WithMessage("E-posta adresi boş olamaz.");
 
 			RuleFor(x => x.Password)
-				.NotEmpty().WithMessage("Şifre boş olamaz.");
+				.NotEmpty().WithMessage("Şifre boş olamaz.").MinimumLength(6).WithMessage("Şifre en az 6 karakter olmalıdır.");
+
+			RuleFor(x => x.Email)
+				.EmailAddress().WithMessage("Geçerli bir e-posta adresi giriniz.");
 		}
 	}
 }

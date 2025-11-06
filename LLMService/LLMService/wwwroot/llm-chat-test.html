@@ -1,0 +1,185 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>LLMService SignalR Test İstemcisi</title>
+    <script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@7.0.0/dist/browser/signalr.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f4f4f9;
+        }
+
+        #chatbox {
+            border: 1px solid #ccc;
+            height: 300px;
+            overflow-y: scroll;
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: white;
+        }
+
+        .user-message {
+            text-align: right;
+            color: #007bff;
+            margin: 5px 0;
+        }
+
+        .ai-message {
+            text-align: left;
+            color: #28a745;
+            margin: 5px 0;
+        }
+
+        .status {
+            color: orange;
+            font-weight: bold;
+        }
+
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+
+        .stream-chunk {
+            display: inline;
+        }
+    </style>
+</head>
+<body>
+    <h1>Finans Uygulaması - LLM Chat Test</h1>
+
+    <div id="status" class="status">Durum: Bağlantı kurulmadı.</div>
+    <p>
+        <label for="accessToken">JWT Token:</label>
+        <input type="text" id="accessToken" style="width: 80%;" placeholder="Buraya geçerli JWT Token'ı yapıştırın">
+    </p>
+
+    <div id="chatbox"></div>
+
+    <input type="text" id="userInput" placeholder="Sorunuzu buraya yazın..." style="width: 80%; padding: 8px;">
+    <button id="sendButton" disabled>Gönder</button>
+    <button id="connectButton">Bağlan</button>
+
+    <script>
+        const chatbox = document.getElementById("chatbox");
+        const statusElement = document.getElementById("status");
+        const userInput = document.getElementById("userInput");
+        const sendButton = document.getElementById("sendButton");
+        const connectButton = document.getElementById("connectButton");
+
+        let connection = null;
+        let currentMessageElement = null; // Canlı akışı tutacak element
+
+        // Ayarlarınızı buraya girin:
+        // API Gateway üzerinden bağlanmak daha gerçekçidir.
+        const hubUrl = "https://localhost:7211/chatHub"; // API GATEWAY PORTU KULLANIN!
+
+        // ----------- UTILITY FONKSİYONLAR -----------
+        function log(message, className = '') {
+            const p = document.createElement("p");
+            p.className = className;
+            p.innerHTML = message;
+            chatbox.appendChild(p);
+            chatbox.scrollTop = chatbox.scrollHeight; // En alta kaydır
+            return p;
+        }
+
+        // ----------- BAĞLANTI MANTIĞI -----------
+        connectButton.addEventListener("click", () => {
+            const token = document.getElementById("accessToken").value.trim();
+            if (!token) {
+                alert("Lütfen bir JWT Token girin.");
+                return;
+            }
+
+            statusElement.textContent = "Durum: Bağlanıyor...";
+            connectButton.disabled = true;
+
+            connection = new signalR.HubConnectionBuilder()
+                .withUrl(hubUrl, {
+                    // Token'ı SignalR'ın beklediği Query String formatında gönderiyoruz
+                    accessTokenFactory: () => token
+                })
+                .withAutomaticReconnect()
+                .build();
+
+            // -- Event Dinleyiciler --
+
+            // 1. Akış Başlangıcı
+            connection.on("ReceiveStreamStart", () => {
+                log("Asistan: ", "ai-message");
+                currentMessageElement = chatbox.lastChild;
+            });
+
+            // 2. Canlı Akış (Chunk)
+            connection.on("ReceiveMessageChunk", (chunk) => {
+                if (currentMessageElement) {
+                    currentMessageElement.innerHTML += chunk;
+                }
+            });
+
+            // 3. Akış Sonu
+            connection.on("ReceiveStreamEnd", () => {
+                // Akış bittiğinde gönderme butonunu tekrar aktif et
+                sendButton.disabled = false;
+                userInput.disabled = false;
+            });
+
+            // 4. Hata Yönetimi
+            connection.on("ReceiveError", (error) => {
+                log(`HATA: ${error}`, "error");
+                sendButton.disabled = false;
+                userInput.disabled = false;
+            });
+
+            // 5. Bağlantıyı Başlat
+            connection.start()
+                .then(() => {
+                    statusElement.textContent = "Durum: Bağlandı.";
+                    sendButton.disabled = false;
+                    userInput.disabled = false;
+                    log("Bağlantı başarılı. Şimdi mesaj gönderebilirsiniz.", "status");
+                })
+                .catch(err => {
+                    statusElement.textContent = "Durum: Bağlantı Başarısız.";
+                    connectButton.disabled = false;
+                    log(`Bağlantı Hatası: ${err.toString()}`, "error");
+                    console.error(err);
+                });
+        });
+
+        // ----------- MESAJ GÖNDERME MANTIĞI -----------
+        sendButton.addEventListener("click", sendMessage);
+        userInput.addEventListener("keyup", (e) => {
+            if (e.key === "Enter") {
+                sendMessage();
+            }
+        });
+
+        function sendMessage() {
+            const message = userInput.value;
+            if (!message || connection.state !== signalR.HubConnectionState.Connected) {
+                return;
+            }
+
+            // UI'da kullanıcı mesajını göster
+            log(`Sen: ${message}`, "user-message");
+            userInput.value = '';
+
+            // Gönderme sırasında butonları devre dışı bırak
+            sendButton.disabled = true;
+            userInput.disabled = true;
+
+            // SignalR ile Hub metodunu çağır
+            connection.invoke("SendMessage", message)
+                .catch(err => {
+                    log(`Gönderme Hatası: ${err.toString()}`, "error");
+                    sendButton.disabled = false;
+                    userInput.disabled = false;
+                    console.error(err);
+                });
+        }
+    </script>
+</body>
+</html>

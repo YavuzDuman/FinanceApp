@@ -2,7 +2,7 @@
 
 namespace FinancialStatementService.Entities
 {
-	public class FinancialStatementDto : IDto
+	public record FinancialStatementDto : IDto
 	{
 		public string StockSymbol { get; set; }
 		public string CompanyName { get; set; } 

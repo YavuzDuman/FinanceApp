@@ -51,26 +51,36 @@ namespace Shared.Extensions
 					return isRequestLog || isError;
                 });
 
-            // 3. SINK: MSSQL SERVER (Veritabanı Kaydı) — bağlantı dizesi mevcutsa ekle
+            // 3. SINK: MSSQL SERVER (Veritabanı Kaydı) — bağlantı dizesi mevcutsa ve SQL Server formatındaysa ekle
             if (!string.IsNullOrWhiteSpace(connectionString))
             {
-                try
+                // PostgreSQL connection string kontrolü (Host= ile başlıyorsa PostgreSQL'dir)
+                bool isPostgreSQL = connectionString.StartsWith("Host=", StringComparison.OrdinalIgnoreCase);
+
+                if (!isPostgreSQL)
                 {
-                    loggerConfig = loggerConfig.WriteTo.MSSqlServer(
-                        connectionString: connectionString,
-                        sinkOptions: new MSSqlServerSinkOptions
-                        {
-                            TableName = "Logs",
-                            // Başlangıçta bağlantı sorunlarında çöküşü önlemek için auto-create kapalı
-                            AutoCreateSqlTable = false
-                        },
-                        restrictedToMinimumLevel: LogEventLevel.Warning // Sadece Uyarı ve üstü (Error, Fatal) logları DB'ye yaz
-                    );
+                    try
+                    {
+                        loggerConfig = loggerConfig.WriteTo.MSSqlServer(
+                            connectionString: connectionString,
+                            sinkOptions: new MSSqlServerSinkOptions
+                            {
+                                TableName = "Logs",
+                                // Başlangıçta bağlantı sorunlarında çöküşü önlemek için auto-create kapalı
+                                AutoCreateSqlTable = false
+                            },
+                            restrictedToMinimumLevel: LogEventLevel.Warning // Sadece Uyarı ve üstü (Error, Fatal) logları DB'ye yaz
+                        );
+                    }
+                    catch (Exception ex)
+                    {
+                        // Sink eklenemese de uygulama çalışmaya devam etmeli
+                        Console.WriteLine($"UYARI: MSSQL sink eklenemedi: {ex.Message}");
+                    }
                 }
-                catch (Exception ex)
+                else
                 {
-                    // Sink eklenemese de uygulama çalışmaya devam etmeli
-                    Console.WriteLine($"UYARI: MSSQL sink eklenemedi: {ex.Message}");
+                    Console.WriteLine("BİLGİ: PostgreSQL connection string tespit edildi. MSSQL sink devre dışı, Console/File kullanılacak.");
                 }
             }
             else

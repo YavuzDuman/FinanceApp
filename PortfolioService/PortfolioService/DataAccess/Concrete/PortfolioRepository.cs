@@ -19,6 +19,7 @@ namespace PortfolioService.DataAccess.Concrete
 		public async Task<List<Portfolio>> GetAllPortfoliosAsync()
 		{
 			return await _context.Portfolios
+				.AsNoTracking() // ⚡ Change tracking'i kapat - read-only sorgu
 				.Include(p => p.PortfolioItems)
 				.ToListAsync();
 		}
@@ -26,6 +27,7 @@ namespace PortfolioService.DataAccess.Concrete
 		public async Task<Portfolio> GetPortfolioByIdAsync(int portfolioId)
 		{
 			var portfolio = await _context.Portfolios
+				.AsNoTracking() // ⚡ Change tracking'i kapat - read-only sorgu
 				.Include(p=> p.PortfolioItems)
 				.FirstOrDefaultAsync(p => p.Id == portfolioId)
 				;
@@ -35,6 +37,7 @@ namespace PortfolioService.DataAccess.Concrete
 		public async Task<List<Portfolio>> GetAllPortfoliosByUserIdAsync(int userId)
 		{
 			return await _context.Portfolios
+				.AsNoTracking() // ⚡ Change tracking'i kapat - read-only sorgu
 				.Where(p => p.UserId == userId)
 				.Include(p=> p.PortfolioItems)
 				.ToListAsync();

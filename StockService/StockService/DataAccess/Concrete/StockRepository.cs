@@ -39,7 +39,7 @@ namespace StockService.DataAccess.Concrete
 					existingStock.HighPrice = stock.HighPrice;
 					existingStock.LowPrice = stock.LowPrice;
 					existingStock.Volume = stock.Volume;
-					existingStock.LastUpdate = stock.LastUpdate;
+					existingStock.LastUpdate = DateTime.UtcNow; // PostgreSQL için UTC kullan
 					stocksToUpdate.Add(existingStock);
 				}
 				else

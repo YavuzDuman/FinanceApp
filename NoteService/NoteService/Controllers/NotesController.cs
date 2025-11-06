@@ -24,21 +24,69 @@ namespace NoteService.Controllers
 			_cache = cache;
 		}
 		
-		[HttpPost]
-		public async Task<IActionResult> CreateNote([FromBody] NoteDto createDto)
+	[HttpPost]
+	public async Task<IActionResult> CreateNote([FromBody] NoteDto createDto)
+	{
+		try
 		{
 			var userId = await UserContextHelper.GetUserIdFromTokenCachedAsync(HttpContext, _cache);
 			var noteId = await _notesManager.CreateNoteAsync(createDto, userId);
 			return CreatedAtAction(nameof(GetNoteById), new { id = noteId }, null);
 		}
+		catch (Exception ex)
+		{
+			Console.WriteLine($"CreateNote hatası: {ex.Message}");
+			Console.WriteLine($"Stack trace: {ex.StackTrace}");
+			if (ex.InnerException != null)
+			{
+				Console.WriteLine($"Inner exception: {ex.InnerException.Message}");
+			}
+			return StatusCode(500, new { message = "Not eklenirken bir hata oluştu.", error = ex.Message });
+		}
+	}
 
-		[HttpGet]
-		public async Task<IActionResult> GetUserNotes()
+	[HttpGet]
+	public async Task<IActionResult> GetUserNotes()
+	{
+		try
 		{
 			var userId = await UserContextHelper.GetUserIdFromTokenCachedAsync(HttpContext, _cache);
 			var notes = await _notesManager.GetUserNotesAsync(userId);
 			return Ok(notes);
 		}
+		catch (Exception ex)
+		{
+			Console.WriteLine($"GetUserNotes hatası: {ex.Message}");
+			Console.WriteLine($"Stack trace: {ex.StackTrace}");
+			if (ex.InnerException != null)
+			{
+				Console.WriteLine($"Inner exception: {ex.InnerException.Message}");
+			}
+			return StatusCode(500, new { message = "Notlar yüklenirken bir hata oluştu.", error = ex.Message });
+		}
+	}
+
+	// GET /api/notes/stock/{symbol} - Hisseye özel notları getir
+	[HttpGet("stock/{symbol}")]
+	public async Task<IActionResult> GetNotesByStock(string symbol)
+	{
+		try
+		{
+			var userId = await UserContextHelper.GetUserIdFromTokenCachedAsync(HttpContext, _cache);
+			var notes = await _notesManager.GetUserNotesByStockAsync(symbol, userId);
+			return Ok(notes);
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine($"GetNotesByStock hatası: {ex.Message}");
+			Console.WriteLine($"Stack trace: {ex.StackTrace}");
+			if (ex.InnerException != null)
+			{
+				Console.WriteLine($"Inner exception: {ex.InnerException.Message}");
+			}
+			return StatusCode(500, new { message = "Notlar yüklenirken bir hata oluştu.", error = ex.Message });
+		}
+	}
 
 		[HttpGet("{id}")]
 		public async Task<IActionResult> GetNoteById(int id)

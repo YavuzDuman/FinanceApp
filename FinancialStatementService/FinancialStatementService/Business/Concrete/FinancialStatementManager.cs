@@ -23,8 +23,32 @@ public class FinancialStatementManager : IFinancialStatementManager
 
 	public async Task<List<FinancialStatementDto>> GetAllSymbolsAsync()
 	{
+		try
+		{
 		var statements = await _repository.GetAllSymbolsAsync();
-		return _mapper.Map<List<FinancialStatementDto>>(statements);
+			if (statements == null || !statements.Any())
+			{
+				Console.WriteLine("GetAllSymbolsAsync: Repository null veya boş döndü.");
+				return new List<FinancialStatementDto>();
+			}
+			
+			Console.WriteLine($"GetAllSymbolsAsync: {statements.Count} statement repository'den alındı.");
+			
+			var dtos = _mapper.Map<List<FinancialStatementDto>>(statements);
+			Console.WriteLine($"GetAllSymbolsAsync: {dtos?.Count ?? 0} DTO oluşturuldu.");
+			
+			return dtos ?? new List<FinancialStatementDto>();
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine($"GetAllSymbolsAsync Manager hatası: {ex.Message}");
+			Console.WriteLine($"Stack trace: {ex.StackTrace}");
+			if (ex.InnerException != null)
+			{
+				Console.WriteLine($"Inner exception: {ex.InnerException.Message}");
+			}
+			throw;
+		}
 	}
 
 	public async Task<List<FinancialStatement>> FetchAndSaveFinancialStatementsAsync()
@@ -183,7 +207,7 @@ public class FinancialStatementManager : IFinancialStatementManager
 							
 							if (DateTime.TryParseExact(announcementStr, "d MMMM", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var parsedAnnouncement))
 							{
-								announcementDate = new DateTime(DateTime.Now.Year, parsedAnnouncement.Month, parsedAnnouncement.Day);
+								announcementDate = new DateTime(DateTime.UtcNow.Year, parsedAnnouncement.Month, parsedAnnouncement.Day);
 							}
 						}
 
@@ -210,7 +234,7 @@ public class FinancialStatementManager : IFinancialStatementManager
 								Data = quarterlyNetProfitText, // Çeyreklik Net Kar
 								AnnouncementDate = announcementDate,
 								NetProfitChangeRate = netProfitChangeRate,
-								UpdatedDate = DateTime.Now
+								UpdatedDate = DateTime.UtcNow
 							};
 							statements.Add(statement);
 						}
